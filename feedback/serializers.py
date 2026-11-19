@@ -2,7 +2,7 @@
 from rest_framework import serializers
 from .models import (
     PhanHoi, SanPham, BinhChon,
-    NhomAI, ChiTietNhomAI, Roadmap, TaiKhoan
+    NhomAI, ChiTietNhomAI, Roadmap, TaiKhoan, Tag
 )
 
 from django.contrib.auth.models import User
@@ -23,8 +23,34 @@ def is_product_owner(request, san_pham):
         return False
 
 
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = '__all__'
+        read_only_fields = ['ma_tag']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        san_pham = attrs.get(
+            'ma_san_pham',
+            getattr(self.instance, 'ma_san_pham', None)
+        )
+
+        if not is_product_owner(request, san_pham):
+            raise serializers.ValidationError(
+                "Bạn không có quyền quản lý Tag của sản phẩm này."
+            )
+
+        return attrs
+
 # 1. PHẢN HỒI
 class PhanHoiSerializer(serializers.ModelSerializer):
+
+    tags = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=Tag.objects.all(),
+        required=False
+    )
 
     class Meta:
         model = PhanHoi
@@ -90,6 +116,23 @@ class PhanHoiSerializer(serializers.ModelSerializer):
             attrs['ma_tai_khoan'] = self.instance.ma_tai_khoan
             attrs['ten_nguoi_gui'] = self.instance.ten_nguoi_gui
             attrs['email_nguoi_gui'] = self.instance.email_nguoi_gui
+
+                # Kiểm tra Tag thuộc cùng sản phẩm với feedback
+        tags = attrs.get(
+            'tags',
+            self.instance.tags.all() if self.instance else []
+        )
+
+        if not is_authenticated and tags:
+            raise serializers.ValidationError(
+                "Khách hàng không được tự gắn Tag."
+            )
+
+        for tag in tags:
+            if tag.ma_san_pham_id != san_pham.pk:
+                raise serializers.ValidationError(
+                    "Tag phải thuộc cùng sản phẩm với phản hồi."
+                )
 
         return attrs
 

@@ -95,12 +95,42 @@ class PhanHoi(models.Model):
     trang_thai = models.CharField(max_length=50, default='Pending')
     ngay_tao = models.DateTimeField(auto_now_add=True)
 
+    tags = models.ManyToManyField(
+        'Tag',
+        blank=True,
+        related_name='phan_hoi'
+    )
+
     def __str__(self):
         return self.tieu_de
 
     class Meta:
         db_table = 'PhanHoi'
 
+
+# 3.1 TAG
+class Tag(models.Model):
+    ma_tag = models.AutoField(primary_key=True)
+
+    ma_san_pham = models.ForeignKey(
+        SanPham,
+        on_delete=models.CASCADE,
+        related_name='tags'
+    )
+
+    ten_tag = models.CharField(max_length=100)
+
+    def __str__(self):
+        return self.ten_tag
+
+    class Meta:
+        db_table = 'Tag'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['ma_san_pham', 'ten_tag'],
+                name='unique_tag_per_product'
+            )
+        ]
 
 
 # 4. BINH CHON
@@ -190,6 +220,7 @@ class Roadmap(models.Model):
     ten_cong_viec = models.CharField(max_length=255)
     trang_thai = models.CharField(max_length=50, default='Planned')
     do_uu_tien = models.IntegerField(default=0)
+    cong_khai = models.BooleanField(default=False)
 
     def __str__(self):
         return self.ten_cong_viec

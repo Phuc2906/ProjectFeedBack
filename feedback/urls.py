@@ -1,7 +1,12 @@
 from rest_framework.routers import DefaultRouter
-from .views import PhanHoiViewSet, RegisterView, SanPhamViewSet, BinhChonViewSet, NhomAIViewSet, ChiTietNhomAIViewSet, RoadmapViewSet
+from .views import (
+    PhanHoiViewSet, RegisterView,
+    SanPhamViewSet, TagViewSet,
+    BinhChonViewSet, NhomAIViewSet,
+    ChiTietNhomAIViewSet, RoadmapViewSet,
+    TaiKhoanView
+)
 from django.urls import path, include
-from .views import TaiKhoanView
 
 router = DefaultRouter()
 
@@ -11,6 +16,7 @@ router.register(r'binhchon', BinhChonViewSet, basename='binhchon')
 router.register(r'nhomai', NhomAIViewSet, basename='nhomai')
 router.register(r'chitietnhomai', ChiTietNhomAIViewSet, basename='chitietnhomai')
 router.register(r'roadmap', RoadmapViewSet, basename='roadmap')
+router.register(r'tag', TagViewSet, basename='tag')
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),

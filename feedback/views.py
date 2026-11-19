@@ -7,20 +7,22 @@ from rest_framework.generics import RetrieveUpdateAPIView
 
 from .models import (
     PhanHoi, SanPham, BinhChon,
-    NhomAI, ChiTietNhomAI, Roadmap, TaiKhoan
+    NhomAI, ChiTietNhomAI, Roadmap, TaiKhoan, Tag
 )
 
 from .serializers import (
     PhanHoiSerializer, SanPhamSerializer,
     BinhChonSerializer, NhomAISerializer,
     ChiTietNhomAISerializer, RoadmapSerializer,
-    RegisterSerializer, TaiKhoanSerializer
+    RegisterSerializer, TaiKhoanSerializer, TagSerializer
 )
 
 from .permissions import (
     IsProductOrReadOnly, IsCSFeedback,
     IsReadOnlyForAll, IsDevRoadmap
 )
+
+from .services import send_feedback_status_email
 
 
 # 1. QUẢN LÝ PHẢN HỒI
@@ -45,6 +47,14 @@ class PhanHoiViewSet(viewsets.ModelViewSet):
         # Khách bên ngoài không được xem danh sách feedback
         return PhanHoi.objects.none()
 
+    # Gửi email khi trạng thái phản hồi thay đổi
+    def perform_update(self, serializer):
+        old_status = serializer.instance.trang_thai
+
+        feedback = serializer.save()
+
+        if old_status != feedback.trang_thai:
+            send_feedback_status_email(feedback)
 
 
 
@@ -64,7 +74,22 @@ class SanPhamViewSet(viewsets.ModelViewSet):
 
         return SanPham.objects.all()
 
+class TagViewSet(viewsets.ModelViewSet):
+    serializer_class = TagSerializer
+    permission_classes = [IsAuthenticated, IsProductOrReadOnly]
 
+    def get_queryset(self):
+        user = self.request.user
+        role = user.tai_khoan.vai_tro
+
+        # Product chỉ quản lý Tag thuộc sản phẩm của mình
+        if role == 'Product':
+            return Tag.objects.filter(
+                ma_san_pham__ma_tai_khoan=user.tai_khoan
+            )
+
+        # CS và Dev chỉ được xem Tag
+        return Tag.objects.all()
 
 # 3. QUẢN LÝ BÌNH CHỌN
 class BinhChonViewSet(viewsets.ModelViewSet):
@@ -113,17 +138,26 @@ class ChiTietNhomAIViewSet(viewsets.ModelViewSet):
 # 6. QUẢN LÝ ROADMAP
 class RoadmapViewSet(viewsets.ModelViewSet):
     serializer_class = RoadmapSerializer
-    permission_classes = [IsAuthenticated, IsDevRoadmap]
+    permission_classes = [IsDevRoadmap]
 
     def get_queryset(self):
         user = self.request.user
+
+        # Khách bên ngoài chỉ xem Roadmap công khai
+        if not user.is_authenticated:
+            return Roadmap.objects.filter(
+                cong_khai=True
+            )
+
         role = user.tai_khoan.vai_tro
 
+        # Product chỉ xem Roadmap thuộc sản phẩm của mình
         if role == 'Product':
             return Roadmap.objects.filter(
                 ma_san_pham__ma_tai_khoan=user.tai_khoan
             )
 
+        # CS và Dev xem toàn bộ Roadmap
         return Roadmap.objects.all()
 
 
