@@ -26,18 +26,25 @@ from .permissions import (
 # 1. QUẢN LÝ PHẢN HỒI
 class PhanHoiViewSet(viewsets.ModelViewSet):
     serializer_class = PhanHoiSerializer
-    permission_classes = [IsAuthenticated, IsCSFeedback]
+    permission_classes = [IsCSFeedback]
 
     def get_queryset(self):
         user = self.request.user
-        role = user.tai_khoan.vai_tro
 
-        if role == 'Product':
-            return PhanHoi.objects.filter(
-                ma_san_pham__ma_tai_khoan=user.tai_khoan
-            ).order_by('-ngay_tao')
+        # Product chỉ xem feedback thuộc sản phẩm của mình
+        if user.is_authenticated:
+            role = user.tai_khoan.vai_tro
 
-        return PhanHoi.objects.all().order_by('-ngay_tao')
+            if role == 'Product':
+                return PhanHoi.objects.filter(
+                    ma_san_pham__ma_tai_khoan=user.tai_khoan
+                ).order_by('-ngay_tao')
+
+            return PhanHoi.objects.all().order_by('-ngay_tao')
+
+        # Khách bên ngoài không được xem danh sách feedback
+        return PhanHoi.objects.none()
+
 
 
 

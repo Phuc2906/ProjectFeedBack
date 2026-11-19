@@ -22,14 +22,24 @@ class IsProductOrReadOnly(BasePermission):
         return get_user_role(request.user) == 'Product'
 
 
+
+
 class IsCSFeedback(BasePermission):
-    """CS được CRUD phản hồi, vai trò khác chỉ được xem."""
 
     def has_permission(self, request, view):
-        if request.method in SAFE_METHODS:
-            return True
+        role = get_user_role(request.user)
 
-        return get_user_role(request.user) == 'CS'
+        # Khách chưa đăng nhập chỉ được gửi feedback
+        if not request.user.is_authenticated:
+            return request.method == 'POST'
+
+        # Các vai trò nội bộ được xem feedback
+        if request.method in SAFE_METHODS:
+            return role in ['Product', 'CS', 'Dev']
+
+        # Chỉ CS được tạo, sửa, xóa
+        return role == 'CS'
+
 
 
 class IsReadOnlyForAll(BasePermission):

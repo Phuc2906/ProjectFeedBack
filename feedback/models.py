@@ -56,17 +56,40 @@ class SanPham(models.Model):
 
 # 3. PHAN HOI
 class PhanHoi(models.Model):
+
+    NGUON_CHOICES = [
+        ('Email', 'Email'),
+        ('Form', 'Form'),
+        ('Chat', 'Chat'),
+        ('Community', 'Community'),
+    ]
+
     ma_phan_hoi = models.AutoField(primary_key=True)
+
+    # Không bắt buộc có tài khoản vì khách hàng có thể gửi từ bên ngoài
     ma_tai_khoan = models.ForeignKey(
         TaiKhoan,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='phan_hoi'
     )
+
     ma_san_pham = models.ForeignKey(
         SanPham,
         on_delete=models.CASCADE,
         related_name='phan_hoi'
     )
+
+    ten_nguoi_gui = models.CharField(max_length=100, blank=True)
+    email_nguoi_gui = models.EmailField(blank=True)
+
+    nguon_tiep_nhan = models.CharField(
+        max_length=20,
+        choices=NGUON_CHOICES,
+        default='Form'
+    )
+
     tieu_de = models.CharField(max_length=255)
     noi_dung = models.TextField()
     trang_thai = models.CharField(max_length=50, default='Pending')
@@ -77,6 +100,7 @@ class PhanHoi(models.Model):
 
     class Meta:
         db_table = 'PhanHoi'
+
 
 
 # 4. BINH CHON

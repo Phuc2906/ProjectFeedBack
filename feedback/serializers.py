@@ -25,9 +25,74 @@ def is_product_owner(request, san_pham):
 
 # 1. PHẢN HỒI
 class PhanHoiSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = PhanHoi
         fields = '__all__'
+        read_only_fields = ['ma_phan_hoi', 'ngay_tao']
+
+    def validate(self, attrs):
+        request = self.context.get('request')
+        is_authenticated = (
+            request is not None and request.user.is_authenticated
+        )
+
+        # Kiểm tra sản phẩm được chọn
+        san_pham = attrs.get(
+            'ma_san_pham',
+            getattr(self.instance, 'ma_san_pham', None)
+        )
+
+        if not san_pham:
+            raise serializers.ValidationError(
+                "Vui lòng chọn sản phẩm."
+            )
+
+        # Khách bên ngoài gửi feedback
+        if not is_authenticated:
+            tai_khoan = attrs.get('ma_tai_khoan')
+
+            if tai_khoan:
+                raise serializers.ValidationError(
+                    "Khách bên ngoài không được gắn tài khoản nội bộ."
+                )
+
+            ten = attrs.get('ten_nguoi_gui', '')
+            email = attrs.get('email_nguoi_gui', '')
+
+            if not ten.strip():
+                raise serializers.ValidationError(
+                    {"ten_nguoi_gui": "Vui lòng nhập tên người gửi."}
+                )
+
+            if not email.strip():
+                raise serializers.ValidationError(
+                    {"email_nguoi_gui": "Vui lòng nhập email người gửi."}
+                )
+
+            attrs['ma_tai_khoan'] = None
+
+        # Tài khoản nội bộ tạo feedback
+        elif self.instance is None:
+            try:
+                tai_khoan = request.user.tai_khoan
+            except TaiKhoan.DoesNotExist:
+                raise serializers.ValidationError(
+                    "Tài khoản chưa có thông tin nội bộ."
+                )
+
+            attrs['ma_tai_khoan'] = tai_khoan
+            attrs['ten_nguoi_gui'] = tai_khoan.ho_ten
+            attrs['email_nguoi_gui'] = tai_khoan.email
+
+        # Khi cập nhật, giữ nguyên thông tin người gửi ban đầu
+        else:
+            attrs['ma_tai_khoan'] = self.instance.ma_tai_khoan
+            attrs['ten_nguoi_gui'] = self.instance.ten_nguoi_gui
+            attrs['email_nguoi_gui'] = self.instance.email_nguoi_gui
+
+        return attrs
+
 
 
 # 2. SẢN PHẨM
