@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FeedLoop – Quản lý feedback sản phẩm</title>
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <style>
 :root{--bg:#f3f6fa;--ink:#14213d;--mut:#64708a;--line:#e2e8f1;--pri:#3b5bdb;--pri2:#e7ecff;--bad:#d6455d;--r:14px}
 *{box-sizing:border-box;margin:0}
@@ -13,7 +14,8 @@ body{font:15px/1.55 'Be Vietnam Pro',system-ui,sans-serif;background:var(--bg);c
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:inherit;text-decoration:none}
 :focus-visible{outline:2px solid var(--pri);outline-offset:2px}
-h1{font-size:25px;line-height:1.25}h3{font-size:16px;margin-bottom:12px}
+h1{font-size:25px;line-height:1.25}
+h3{font-size:16px;margin-bottom:12px}
 .sub{color:var(--mut);margin:2px 0 20px}
 .app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
 .side{background:var(--ink);color:#cdd6ec;padding:22px 14px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
@@ -69,194 +71,1407 @@ th{color:var(--mut);font-weight:600;font-size:13px}td select{width:auto}
 .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:12px;z-index:20}
 .toast.bad{background:var(--bad)}
 @media(max-width:820px){
- .app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px}
- .brand{padding:0 8px 0 0}.side nav{display:flex;gap:2px;overflow:auto;flex:1}.side nav a{white-space:nowrap;padding:8px 10px}.me{display:none}
- .main{padding:20px 16px}.split{grid-template-columns:1fr}.auth{grid-template-columns:1fr}.hero{padding:30px}.hero h2{font-size:28px}
+.app{grid-template-columns:1fr}.side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:12px}
+.brand{padding:0 8px 0 0}.side nav{display:flex;gap:2px;overflow:auto;flex:1}.side nav a{white-space:nowrap;padding:8px 10px}.me{display:none}
+.main{padding:20px 16px}.split{grid-template-columns:1fr}.auth{grid-template-columns:1fr}.hero{padding:30px}.hero h2{font-size:28px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
+
 <body>
+
 <div id="auth" class="auth" hidden></div>
+
 <div id="app" class="app" hidden>
- <aside class="side">
-  <div class="brand"><span class="logo">↻</span>FeedLoop</div>
-  <nav id="nav"></nav>
-  <div class="me"><b id="meName"></b><span id="meRole"></span><br><button onclick="logout()">Đăng xuất</button></div>
- </aside>
- <main class="main" id="main"></main>
+    <aside class="side">
+        <div class="brand"><span class="logo">↻</span>FeedLoop</div>
+        <nav id="nav"></nav>
+        <div class="me">
+            <b id="meName"></b>
+            <span id="meRole"></span><br>
+            <button onclick="logout()">Đăng xuất</button>
+        </div>
+    </aside>
+    <main class="main" id="main"></main>
 </div>
+
 <div id="modal" class="modal" hidden></div>
 
 <script>
-/* ===== CẤU HÌNH KẾT NỐI BACKEND – chỉnh ở đây nếu URL/field của backend khác ===== */
-const CFG={
- API:(()=>{try{return localStorage.getItem('api')}catch(e){}})()||'http://127.0.0.1:8000/api',
- AUTH:'Bearer', // dùng 'Token' nếu backend là DRF TokenAuthentication
- EP:{login:'/auth/login/',register:'/auth/register/',me:'/auth/me/',fb:'/feedbacks/',vote:id=>`/feedbacks/${id}/vote/`,users:'/users/',ai:'/ai/insights/'}
+/* =========================================================
+   CẤU HÌNH BACKEND DJANGO
+========================================================= */
+
+const CFG = {
+    API: (() => {
+        try {
+            return localStorage.getItem('api');
+        } catch (e) {
+            return null;
+        }
+    })() || 'http://127.0.0.1:8000/api',
+
+    AUTH: 'Bearer',
+
+    EP: {
+        login: '/token/',
+        register: '/register/',
+        me: '/taikhoan/me/',
+        fb: '/phanhoi/',
+        products: '/sanpham/',
+        tags: '/tag/',
+        vote: '/binhchon/',
+        roadmap: '/roadmap/',
+        groups: '/nhomai/',
+        users: '/users/',
+        ai: '/ai/insights/'
+    }
 };
-/* ===== Tiện ích ===== */
-const $=s=>document.querySelector(s);
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):v===null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
-const arr=d=>Array.isArray(d)?d:d?.results||[];
-const S={token:ls('tk'),user:JSON.parse(ls('us')||'null'),fbs:[],users:[]};
-let CUR=null,redraw=null;
-const ST={new:['Mới','#3b5bdb','#e7ecff'],reviewing:['Đang xem xét','#b7791f','#fff4dc'],planned:['Đã lên kế hoạch','#7048e8','#f0eaff'],in_progress:['Đang làm','#e8590c','#ffeadb'],done:['Hoàn thành','#2f9e6b','#e0f6ec'],rejected:['Từ chối','#868e96','#eceef1']};
-const stl=s=>ST[s]||[s,'#64708a','#eef1f6'];
-const chip=s=>{const[l,c,b]=stl(s);return`<span class="chip" style="color:${c};background:${b}">${esc(l)}</span>`};
-const ROLES={user:'Khách hàng',cs:'CS',dev:'Dev',product:'Product',admin:'Admin'};
-const isStaff=()=>['cs','dev','product','admin'].includes(S.user?.role)||S.user?.is_staff||S.user?.is_superuser;
-const canAdmin=()=>['admin','product'].includes(S.user?.role)||S.user?.is_staff||S.user?.is_superuser;
-const fdate=d=>{const x=new Date(d);return isNaN(x)?'':x.toLocaleDateString('vi-VN')};
-const nf=o=>({id:o.id,title:o.title||o.name||'(Không có tiêu đề)',desc:o.description||o.content||o.body||'',status:o.status||'new',
- tags:(o.tags||[]).map(t=>t.name||t),votes:o.votes??o.vote_count??o.votes_count??0,
- by:o.author_name||o.author?.username||(typeof o.author=='string'?o.author:'')||o.email||o.created_by||'Ẩn danh',
- at:o.created_at||o.created||'',src:o.source||'',pub:o.is_public??true});
-function toast(m,bad){const t=document.createElement('div');t.className='toast'+(bad?' bad':'');t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),3200)}
-const safe=fn=>async(...a)=>{try{return await fn(...a)}catch(e){toast(e.message,1)}};
-const errMsg=d=>{if(!d)return'';if(typeof d=='string')return d;if(d.detail)return d.detail;const v=Object.entries(d)[0];return v?(Array.isArray(v[1])?v[1][0]:v[1]):''};
-async function api(path,{method='GET',body}={}){
- const h={'Content-Type':'application/json'};if(S.token)h.Authorization=CFG.AUTH+' '+S.token;
- let r;try{r=await fetch(CFG.API+path,{method,headers:h,body:body?JSON.stringify(body):undefined})}
- catch(e){throw Error('Không kết nối được backend tại '+CFG.API+'. Hãy bật server Django và cấu hình CORS.')}
- if(r.status==401&&S.token&&!path.includes('/auth/')){logout();throw Error('Phiên đăng nhập đã hết hạn')}
- const d=r.status==204?null:await r.json().catch(()=>null);
- if(!r.ok)throw Error(errMsg(d)||'Lỗi '+r.status);return d}
-function modal(html){const m=$('#modal');m.innerHTML=`<div class="card">${html}</div>`;m.hidden=false;m.onclick=e=>{if(e.target==m)closeM()}}
-function closeM(){$('#modal').hidden=true}
-async function loadFb(){S.fbs=arr(await api(CFG.EP.fb+'?page_size=500')).map(nf)}
 
-/* ===== Đăng nhập / đăng ký ===== */
-function showAuth(mode='login'){
- $('#app').hidden=true;const a=$('#auth');a.hidden=false;const reg=mode=='register';
- a.innerHTML=`<section class="hero"><div class="logo" style="width:44px;height:44px;font-size:22px">↻</div>
- <h2>Biến feedback của khách hàng thành roadmap</h2><p>Gom góp ý từ nhiều nguồn, để AI nhóm các ý trùng lặp và cho biết nên làm gì trước.</p></section>
- <section class="form"><form onsubmit="doAuth(event,${reg})"><h1>${reg?'Tạo tài khoản':'Đăng nhập'}</h1>
- <label>Tên đăng nhập</label><input name="username" required autocomplete="username">
- ${reg?'<label>Email</label><input name="email" type="email" required>':''}
- <label>Mật khẩu</label><input name="password" type="password" required minlength="6" autocomplete="${reg?'new':'current'}-password">
- <div class="err" id="aerr"></div><button class="btn">${reg?'Đăng ký':'Đăng nhập'}</button>
- <p>${reg?'Đã có tài khoản? <a onclick="showAuth()">Đăng nhập</a>':'Chưa có tài khoản? <a onclick="showAuth(\'register\')">Đăng ký</a>'}</p>
- <p>Backend: <code>${esc(CFG.API)}</code> · <a onclick="setApi()">Đổi địa chỉ</a></p></form></section>`}
-function setApi(){const v=prompt('Địa chỉ API backend (vd: https://ten-app.onrender.com/api)',CFG.API);if(v){ls('api',v.replace(/\/$/,''));location.reload()}}
-async function doAuth(e,reg){e.preventDefault();const f=Object.fromEntries(new FormData(e.target)),b=e.target.querySelector('.btn');b.disabled=true;
- try{if(reg)await api(CFG.EP.register,{method:'POST',body:f});
-  const d=await api(CFG.EP.login,{method:'POST',body:{username:f.username,password:f.password}});
-  S.token=d.token||d.access||d.key;if(!S.token)throw Error('Backend không trả về token đăng nhập');ls('tk',S.token);
-  S.user=d.user||await api(CFG.EP.me).catch(()=>({username:f.username}));ls('us',JSON.stringify(S.user));
-  location.hash='#/dashboard';route()}
- catch(x){$('#aerr').textContent=x.message;b.disabled=false}}
-function logout(){S.token=null;S.user=null;ls('tk',null);ls('us',null);location.hash='';showAuth()}
 
-/* ===== Router ===== */
-const V={dashboard,inbox,detail,roadmap,ai,users};
-const NAV=[['dashboard','Tổng quan'],['inbox','Hộp thư'],['roadmap','Roadmap'],['ai','Insight AI'],['users','Người dùng']];
-async function route(){
- if(!S.token){showAuth();return}
- $('#auth').hidden=true;$('#app').hidden=false;
- const[p,id]=location.hash.slice(2).split('/');const cur=V[p]?p:'dashboard';
- $('#meName').textContent=S.user?.username||'Tài khoản';$('#meRole').textContent=ROLES[S.user?.role]||(isStaff()?'Nhân sự':'Khách hàng');
- $('#nav').innerHTML=NAV.filter(n=>n[0]!='users'||canAdmin()).map(n=>`<a href="#/${n[0]}" class="${(cur==n[0]||(cur=='detail'&&n[0]=='inbox'))?'on':''}">${n[1]}</a>`).join('');
- $('#main').innerHTML='<p class="sub">Đang tải…</p>';redraw=null;
- try{await V[cur](id)}catch(e){$('#main').innerHTML=`<div class="card"><h3>Không tải được dữ liệu</h3><p class="sub">${esc(e.message)}</p><button class="btn" onclick="route()">Thử lại</button></div>`}}
-addEventListener('hashchange',route);
+/* =========================================================
+   TIỆN ÍCH
+========================================================= */
 
-/* ===== Tổng quan ===== */
-async function dashboard(){await loadFb();const f=S.fbs,c=s=>f.filter(x=>x.status==s).length;
- const tags={};f.forEach(x=>x.tags.forEach(t=>tags[t]=(tags[t]||0)+1));
- const top=[...f].sort((a,b)=>b.votes-a.votes).slice(0,5),max=Math.max(1,...Object.keys(ST).map(c));
- $('#main').innerHTML=`<h1>Tổng quan</h1><p class="sub">Tình hình feedback của sản phẩm</p>
- <div class="grid g4">${[['Tổng feedback',f.length],['Mới, chưa xử lý',c('new')],['Đang làm',c('in_progress')],['Đã hoàn thành',c('done')],['Tổng lượt vote',f.reduce((a,x)=>a+x.votes,0)]].map(([l,n])=>`<div class="card stat"><b>${n}</b><span>${l}</span></div>`).join('')}</div>
- <div class="grid g2" style="margin-top:14px"><div class="card"><h3>Theo trạng thái</h3>${Object.keys(ST).map(s=>`<div class="hb"><span>${stl(s)[0]}</span><i style="width:${c(s)/max*100}%;background:${stl(s)[1]}"></i><em>${c(s)}</em></div>`).join('')}</div>
- <div class="card"><h3>Được vote nhiều nhất</h3>${top.map(x=>`<a class="mini" href="#/detail/${x.id}"><b>${x.votes}</b><span>${esc(x.title)}</span></a>`).join('')||'<p class="empty">Chưa có feedback nào.</p>'}</div></div>
- <div class="card" style="margin-top:14px"><h3>Tag phổ biến</h3>${Object.entries(tags).sort((a,b)=>b[1]-a[1]).map(([t,n])=>`<span class="tag">${esc(t)} · ${n}</span>`).join('')||'<span class="sub">Chưa có tag.</span>'}</div>`}
+const $ = s => document.querySelector(s);
 
-/* ===== Hộp thư + bộ lọc ===== */
-async function inbox(){await loadFb();const tags=[...new Set(S.fbs.flatMap(x=>x.tags))];
- $('#main').innerHTML=`<div class="top"><div><h1>Hộp thư feedback</h1><p class="sub">Góp ý từ form, email, chat và cộng đồng</p></div><button class="btn" onclick="edit()">Thêm feedback</button></div>
- <div class="bar"><input id="q" placeholder="Tìm theo tiêu đề hoặc nội dung…"><select id="fs"><option value="">Mọi trạng thái</option>${Object.keys(ST).map(s=>`<option value="${s}">${stl(s)[0]}</option>`).join('')}</select>
- <select id="ft"><option value="">Mọi tag</option>${tags.map(t=>`<option>${esc(t)}</option>`).join('')}</select>
- <select id="fo"><option value="v">Nhiều vote nhất</option><option value="n">Mới nhất</option></select></div><div class="card" style="padding:0" id="list"></div>`;
- redraw=()=>{const q=$('#q').value.toLowerCase(),s=$('#fs').value,t=$('#ft').value;
-  const l=S.fbs.filter(x=>(!q||(x.title+x.desc).toLowerCase().includes(q))&&(!s||x.status==s)&&(!t||x.tags.includes(t)))
-   .sort((a,b)=>$('#fo').value=='v'?b.votes-a.votes:new Date(b.at)-new Date(a.at));
-  $('#list').innerHTML=l.map(x=>`<div class="row" onclick="location.hash='#/detail/${x.id}'"><button class="vote" onclick="vote(event,${x.id})">▲ ${x.votes}<small>vote</small></button>
-   <div class="t"><b>${esc(x.title)}</b><span>${esc(x.by)}${x.at?' · '+fdate(x.at):''}${x.src?' · '+esc(x.src):''}</span><div>${x.tags.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div></div>${chip(x.status)}</div>`).join('')
-   ||'<p class="empty">Không có feedback phù hợp. Thử đổi bộ lọc hoặc thêm feedback mới.</p>'};
- ['q','fs','ft','fo'].forEach(i=>$('#'+i).oninput=redraw);redraw()}
-const vote=safe(async(e,id)=>{e.stopPropagation();await api(CFG.EP.vote(id),{method:'POST'});
- const n=nf(await api(CFG.EP.fb+id+'/'));S.fbs=S.fbs.map(x=>x.id==id?n:x);if(CUR?.id==id)CUR=n;redraw?redraw():route();toast('Đã ghi nhận vote')});
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+}[c]));
 
-/* ===== Chi tiết feedback ===== */
-async function detail(id){const x=CUR=nf(await api(CFG.EP.fb+id+'/')),st=isStaff();
- $('#main').innerHTML=`<a class="back" href="#/inbox">← Về hộp thư</a><div class="split"><div class="card"><h1>${esc(x.title)}</h1>
- <p class="sub">${esc(x.by)}${x.at?' · '+fdate(x.at):''}${x.src?' · '+esc(x.src):''}</p><p class="body">${esc(x.desc)||'Chưa có mô tả.'}</p>
- <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" onclick="edit(true)">Chỉnh sửa</button><button class="btn bad" onclick="del()">Xóa</button></div></div>
- <div class="card"><label style="margin-top:0">Trạng thái</label>${st?`<select onchange="patch({status:this.value})">${Object.keys(ST).map(s=>`<option value="${s}" ${s==x.status?'selected':''}>${stl(s)[0]}</option>`).join('')}</select>`:chip(x.status)}
- <label>Tag</label><div>${x.tags.map(t=>`<span class="tag">${esc(t)}${st?`<u onclick="rmTag('${esc(t).replace(/'/g,'')}')">×</u>`:''}</span>`).join('')||'<span class="sub">Chưa có tag</span>'}</div>
- ${st?'<input placeholder="Nhập tag rồi nhấn Enter" onkeydown="addTag(event)" style="margin-top:6px">':''}
- <label>Lượt vote</label><button class="vote" style="width:100%" onclick="vote(event,${x.id})">▲ ${x.votes} · Vote cho feedback này</button></div></div>`}
-const patch=safe(async b=>{await api(CFG.EP.fb+CUR.id+'/',{method:'PATCH',body:b});toast('Đã cập nhật');route()});
-const addTag=e=>{if(e.key!='Enter')return;const v=e.target.value.trim();if(v&&!CUR.tags.includes(v))patch({tags:[...CUR.tags,v]})};
-const rmTag=t=>patch({tags:CUR.tags.filter(x=>x!=t)});
-const del=safe(async()=>{if(!confirm('Xóa feedback này?'))return;await api(CFG.EP.fb+CUR.id+'/',{method:'DELETE'});toast('Đã xóa');location.hash='#/inbox'});
-function edit(isEdit){const x=isEdit?CUR:{title:'',desc:'',tags:[],status:'new'};
- modal(`<h3>${isEdit?'Chỉnh sửa feedback':'Thêm feedback'}</h3><form onsubmit="save(event,${!!isEdit})"><label style="margin-top:0">Tiêu đề</label><input name="title" required value="${esc(x.title)}">
- <label>Nội dung</label><textarea name="description" rows="5">${esc(x.desc)}</textarea><label>Tag (cách nhau bằng dấu phẩy)</label><input name="tags" value="${esc(x.tags.join(', '))}">
- ${isStaff()?`<label>Trạng thái</label><select name="status">${Object.keys(ST).map(s=>`<option value="${s}" ${s==x.status?'selected':''}>${stl(s)[0]}</option>`).join('')}</select>`:''}
- <div style="display:flex;gap:8px;margin-top:18px"><button class="btn">Lưu</button><button type="button" class="btn ghost" onclick="closeM()">Hủy</button></div></form>`)}
-const save=safe(async(e,isEdit)=>{e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
- const body={title:f.title,description:f.description,tags:f.tags.split(',').map(t=>t.trim()).filter(Boolean)};if(f.status)body.status=f.status;
- await api(CFG.EP.fb+(isEdit?CUR.id+'/':''),{method:isEdit?'PATCH':'POST',body});closeM();toast('Đã lưu');route()});
+const ls = (k, v) => {
+    try {
+        if (v === undefined) return localStorage.getItem(k);
+        if (v === null) return localStorage.removeItem(k);
+        return localStorage.setItem(k, v);
+    } catch (e) {}
+};
 
-/* ===== Roadmap public / private ===== */
-async function roadmap(){await loadFb();const st=isStaff();let mode=st&&ls('rm')=='pri'?'pri':'pub';
- const draw=()=>{const cols=mode=='pri'?['reviewing','planned','in_progress','done']:['planned','in_progress','done'];
-  $('#main').innerHTML=`<h1>Roadmap</h1><p class="sub">${mode=='pri'?'Bản nội bộ: gồm cả mục đang xem xét':'Bản công khai: những gì khách hàng được xem'}</p>
-  ${st?`<div class="seg"><button class="${mode=='pub'?'on':''}" onclick="rm('pub')">Public</button><button class="${mode=='pri'?'on':''}" onclick="rm('pri')">Private</button></div>`:''}
-  <div class="kan">${cols.map(c=>{const l=S.fbs.filter(x=>x.status==c&&(mode=='pri'||x.pub));
-   return`<div class="col"><h3>${chip(c)}<span>${l.length}</span></h3>${l.map(x=>`<a class="kc" href="#/detail/${x.id}"><b>${esc(x.title)}</b><br><small>▲ ${x.votes} vote</small></a>`).join('')||'<p class="empty">Trống</p>'}</div>`}).join('')}</div>`};
- window.rm=m=>{mode=m;ls('rm',m);draw()};draw()}
+const arr = d => Array.isArray(d) ? d : d?.results || [];
 
-/* ===== Insight AI ===== */
-function localAI(){const stop=new Set('của và các cho với một những được này khi trong không có để là the and for'.split(' '));
- const tok=x=>new Set(((x.title+' '+x.desc).toLowerCase().match(/[\p{L}\d]+/gu)||[]).filter(w=>w.length>2&&!stop.has(w)));
- const f=S.fbs,T=f.map(tok),p=f.map((_,i)=>i),find=i=>p[i]==i?i:p[i]=find(p[i]);
- for(let i=0;i<f.length;i++)for(let j=i+1;j<f.length;j++){const sh=[...T[i]].filter(w=>T[j].has(w)).length,m=Math.min(T[i].size,T[j].size)||1;
-  if(sh/m>=.5||f[i].tags.some(t=>f[j].tags.includes(t)))p[find(j)]=find(i)}
- const g={};f.forEach((x,i)=>(g[find(i)]??=[]).push(x.id));
- return Object.values(g).map(ids=>{const m=ids.map(id=>f.find(x=>x.id==id)),tc={};m.forEach(x=>x.tags.forEach(t=>tc[t]=(tc[t]||0)+1));
-  const top=Object.entries(tc).sort((a,b)=>b[1]-a[1])[0];
-  return{title:top?top[0]:m[0].title,summary:`${m.length} góp ý tương tự, tổng ${m.reduce((a,x)=>a+x.votes,0)} lượt vote. Ví dụ: “${m[0].title}”.`,ids}})}
-async function ai(){await loadFb();
- $('#main').innerHTML=`<div class="top"><div><h1>Insight bằng AI</h1><p class="sub">Gom feedback trùng lặp, tóm tắt insight và đề xuất mức ưu tiên</p></div><button class="btn" id="run">Phân tích ${S.fbs.length} feedback</button></div><div id="out"></div>`;
- $('#run').onclick=async()=>{const b=$('#run');b.disabled=true;b.textContent='Đang phân tích…';let note='',cl;
-  try{const d=await api(CFG.EP.ai,{method:'POST',body:{feedback_ids:S.fbs.map(x=>x.id)}});
-   cl=(d.clusters||d.groups||arr(d)).map(c=>({title:c.title||c.name,summary:c.summary||c.insight||'',priority:c.priority,ids:c.feedback_ids||c.ids||(c.feedbacks||[]).map(f=>f.id||f)}))}
-  catch(e){cl=localAI();note='Backend chưa có endpoint AI nên đang dùng phân tích cục bộ (theo tag và từ khóa trùng).'}
-  cl.forEach(c=>{const m=c.ids.map(id=>S.fbs.find(x=>x.id==id)).filter(Boolean);c.items=m;c.votes=m.reduce((a,x)=>a+x.votes,0);c.score=c.votes+2*m.length});
-  const mx=Math.max(1,...cl.map(c=>c.score));cl.sort((a,b)=>b.score-a.score);
-  cl.forEach(c=>{c.priority=String(c.priority||(c.score>=.66*mx?'high':c.score>=.33*mx?'medium':'low')).toLowerCase()});
-  const P={high:['Ưu tiên cao','#d6455d','#fdebee'],medium:['Ưu tiên vừa','#b7791f','#fff4dc'],low:['Ưu tiên thấp','#64708a','#eef1f6']};window.CL=cl;
-  $('#out').innerHTML=(note?`<p class="sub">${note}</p>`:'')+`<div class="grid">${cl.map((c,i)=>{const p=P[c.priority]||P.low;
-   return`<div class="card"><div class="top"><h3>${esc(c.title)}</h3><span class="chip" style="color:${p[1]};background:${p[2]}">${p[0]}</span></div>
-   <p>${esc(c.summary)}</p><p class="sub" style="margin:8px 0">${c.items.length} feedback · ${c.votes} lượt vote</p>
-   ${c.items.map(x=>`<a class="mini" href="#/detail/${x.id}"><b>▲ ${x.votes}</b><span>${esc(x.title)}</span></a>`).join('')}
-   <button class="btn ghost" style="margin-top:12px" onclick="draft(${i})">Tạo nháp phản hồi khách hàng</button></div>`}).join('')||'<p class="empty">Chưa có feedback để phân tích.</p>'}</div>`;
-  b.disabled=false;b.textContent='Phân tích lại'}}
-function draft(i){const c=CL[i];const t=`Chào bạn,\n\nCảm ơn bạn đã góp ý về "${c.title}". Chúng mình đã ghi nhận ý kiến của bạn cùng ${Math.max(0,c.items.length-1)} góp ý tương tự và đang xem xét để đưa vào kế hoạch phát triển.\n\nChúng mình sẽ cập nhật tiến độ trên roadmap và thông báo ngay khi có thay đổi.\n\nTrân trọng,\nĐội sản phẩm`;
- modal(`<h3>Nháp phản hồi</h3><textarea id="dt" rows="10">${esc(t)}</textarea><div style="display:flex;gap:8px;margin-top:16px"><button class="btn" onclick="navigator.clipboard.writeText($('#dt').value).then(()=>toast('Đã sao chép'))">Sao chép</button><button class="btn ghost" onclick="closeM()">Đóng</button></div>`)}
+const S = {
+    token: ls('tk'),
+    user: JSON.parse(ls('us') || 'null'),
+    fbs: [],
+    users: [],
+    tags: [],
+    products: [],
+    votes: [],
+    roadmaps: [],
+    groups: []
+};
 
-/* ===== Quản lý người dùng ===== */
-async function users(){if(!canAdmin()){$('#main').innerHTML='<div class="card"><h3>Không có quyền truy cập</h3><p class="sub">Chỉ Admin hoặc Product mới quản lý được người dùng.</p></div>';return}
- S.users=arr(await api(CFG.EP.users));
- $('#main').innerHTML=`<h1>Người dùng</h1><p class="sub">Phân quyền và quản lý tài khoản</p><div class="card" style="padding:6px 10px;overflow:auto"><table><tr><th>Tên đăng nhập</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th></tr>
- ${S.users.map(u=>`<tr><td><b>${esc(u.username)}</b></td><td>${esc(u.email)}</td><td><select onchange="upUser(${u.id},{role:this.value})">${Object.entries(ROLES).map(([k,v])=>`<option value="${k}" ${k==(u.role||'user')?'selected':''}>${v}</option>`).join('')}</select></td>
- <td><button class="btn ${u.is_active===false?'bad':'ghost'}" onclick="upUser(${u.id},{is_active:${u.is_active===false}})">${u.is_active===false?'Đã khóa – Mở khóa':'Hoạt động – Khóa'}</button></td></tr>`).join('')}</table></div>`}
-const upUser=safe(async(id,b)=>{await api(CFG.EP.users+id+'/',{method:'PATCH',body:b});toast('Đã cập nhật người dùng');route()});
+let CUR = null;
+let redraw = null;
 
-route();
+
+/* =========================================================
+   TRẠNG THÁI THEO BACKEND
+   Backend hiện sử dụng:
+   Pending / In Progress / Done
+========================================================= */
+
+const ST = {
+    'Pending': ['Chờ xử lý', '#b7791f', '#fff4dc'],
+    'In Progress': ['Đang xử lý', '#e8590c', '#ffeadb'],
+    'Done': ['Hoàn thành', '#2f9e6b', '#e0f6ec']
+};
+
+const stl = s => ST[s] || [s || 'Chưa xác định', '#64708a', '#eef1f6'];
+
+const chip = s => {
+    const [l, c, b] = stl(s);
+    return `<span class="chip" style="color:${c};background:${b}">${esc(l)}</span>`;
+};
+
+
+/* =========================================================
+   VAI TRÒ
+   Backend trả vai_tro: Product / CS / Dev
+========================================================= */
+
+const ROLES = {
+    Product: 'Product',
+    CS: 'CS',
+    Dev: 'Dev'
+};
+
+const getRole = () => {
+    return S.user?.vai_tro || S.user?.role || null;
+};
+
+const isStaff = () => !!S.token;
+
+const canAdmin = () => getRole() === 'Product';
+
+
+const fdate = d => {
+    const x = new Date(d);
+    return isNaN(x) ? '' : x.toLocaleDateString('vi-VN');
+};
+
+
+/* =========================================================
+   CHUYỂN DỮ LIỆU BACKEND SANG GIAO DIỆN
+========================================================= */
+
+function getTagNames(tagIds) {
+    if (!Array.isArray(tagIds)) return [];
+
+    return tagIds.map(id => {
+        const tag = S.tags.find(t => t.ma_tag === id);
+        return tag ? tag.ten_tag : null;
+    }).filter(Boolean);
+}
+
+function nf(o) {
+    return {
+        id: o.ma_phan_hoi,
+        title: o.tieu_de || '(Không có tiêu đề)',
+        desc: o.noi_dung || '',
+        status: o.trang_thai || 'Pending',
+        tagIds: Array.isArray(o.tags) ? o.tags : [],
+        tags: getTagNames(o.tags),
+        votes: S.votes.filter(v => {
+            const feedbackId = v.ma_phan_hoi;
+            return Number(feedbackId) === Number(o.ma_phan_hoi);
+        }).length,
+        by: o.ten_nguoi_gui || 'Ẩn danh',
+        email: o.email_nguoi_gui || '',
+        at: o.ngay_tao || '',
+        src: o.nguon_tiep_nhan || '',
+        productId: o.ma_san_pham,
+        accountId: o.ma_tai_khoan
+    };
+}
+
+
+/* =========================================================
+   THÔNG BÁO VÀ XỬ LÝ LỖI
+========================================================= */
+
+function toast(m, bad) {
+    const t = document.createElement('div');
+    t.className = 'toast' + (bad ? ' bad' : '');
+    t.textContent = m;
+    document.body.append(t);
+    setTimeout(() => t.remove(), 3200);
+}
+
+const safe = fn => async (...a) => {
+    try {
+        return await fn(...a);
+    } catch (e) {
+        toast(e.message, true);
+    }
+};
+
+const errMsg = d => {
+    if (!d) return '';
+    if (typeof d === 'string') return d;
+    if (d.detail) return d.detail;
+
+    const v = Object.entries(d)[0];
+
+    return v
+        ? (Array.isArray(v[1]) ? v[1][0] : v[1])
+        : '';
+};
+
+
+/* =========================================================
+   HÀM GỌI API
+========================================================= */
+
+async function api(path, {method = 'GET', body} = {}) {
+    const h = {
+        'Content-Type': 'application/json'
+    };
+
+    if (S.token) {
+        h.Authorization = CFG.AUTH + ' ' + S.token;
+    }
+
+    let r;
+
+    try {
+        r = await fetch(CFG.API + path, {
+            method,
+            headers: h,
+            body: body !== undefined ? JSON.stringify(body) : undefined
+        });
+    } catch (e) {
+        throw Error(
+            'Không kết nối được Backend tại ' + CFG.API +
+            '. Hãy bật Django server và kiểm tra CORS.'
+        );
+    }
+
+    if (r.status === 401 && S.token && !path.includes('/token/')) {
+        logout();
+        throw Error('Phiên đăng nhập đã hết hạn.');
+    }
+
+    const d = r.status === 204
+        ? null
+        : await r.json().catch(() => null);
+
+    if (!r.ok) {
+        throw Error(errMsg(d) || 'Lỗi HTTP ' + r.status);
+    }
+
+    return d;
+}
+
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+function modal(html) {
+    const m = $('#modal');
+    m.innerHTML = `<div class="card">${html}</div>`;
+    m.hidden = false;
+
+    m.onclick = e => {
+        if (e.target === m) closeM();
+    };
+}
+
+function closeM() {
+    $('#modal').hidden = true;
+}
+
+
+/* =========================================================
+   TẢI DỮ LIỆU TỪ BACKEND
+========================================================= */
+
+async function loadTags() {
+    S.tags = arr(await api(CFG.EP.tags));
+}
+
+async function loadVotes() {
+    S.votes = arr(await api(CFG.EP.vote));
+}
+
+async function loadFb() {
+    await loadTags();
+    await loadVotes();
+
+    const data = arr(await api(CFG.EP.fb));
+    S.fbs = data.map(nf);
+}
+
+async function loadProducts() {
+    S.products = arr(await api(CFG.EP.products));
+}
+
+async function loadRoadmaps() {
+    S.roadmaps = arr(await api(CFG.EP.roadmap));
+}
+
+
+/* =========================================================
+   ĐĂNG NHẬP / ĐĂNG KÝ
+========================================================= */
+
+function showAuth(mode = 'login') {
+    $('#app').hidden = true;
+
+    const a = $('#auth');
+    a.hidden = false;
+
+    const reg = mode === 'register';
+
+    a.innerHTML = `
+        <section class="hero">
+            <div class="logo" style="width:44px;height:44px;font-size:22px">↻</div>
+            <h2>Biến feedback của khách hàng thành roadmap</h2>
+            <p>Gom góp ý từ nhiều nguồn, để AI nhóm các ý trùng lặp và cho biết nên làm gì trước.</p>
+        </section>
+
+        <section class="form">
+            <form onsubmit="doAuth(event,${reg})">
+                <h1>${reg ? 'Tạo tài khoản' : 'Đăng nhập'}</h1>
+
+                <label>Tên đăng nhập</label>
+                <input name="username" required autocomplete="username">
+
+                ${reg ? `
+                    <label>Email</label>
+                    <input name="email" type="email" required>
+                ` : ''}
+
+                <label>Mật khẩu</label>
+                <input name="password" type="password" required minlength="6"
+                    autocomplete="${reg ? 'new' : 'current'}-password">
+
+                <div class="err" id="aerr"></div>
+
+                <button class="btn">
+                    ${reg ? 'Đăng ký' : 'Đăng nhập'}
+                </button>
+
+                <p>
+                    ${reg
+                        ? `Đã có tài khoản? <a onclick="showAuth()">Đăng nhập</a>`
+                        : `Chưa có tài khoản? <a onclick="showAuth('register')">Đăng ký</a>`
+                    }
+                </p>
+
+                <p>
+                    Backend: <code>${esc(CFG.API)}</code>
+                    · <a onclick="setApi()">Đổi địa chỉ</a>
+                </p>
+            </form>
+        </section>
+    `;
+}
+
+
+function setApi() {
+    const v = prompt(
+        'Địa chỉ API Backend (ví dụ: https://ten-app.onrender.com/api)',
+        CFG.API
+    );
+
+    if (v) {
+        ls('api', v.replace(/\/$/, ''));
+        location.reload();
+    }
+}
+
+
+async function doAuth(e, reg) {
+    e.preventDefault();
+
+    const f = Object.fromEntries(new FormData(e.target));
+    const b = e.target.querySelector('.btn');
+
+    b.disabled = true;
+
+    try {
+        if (reg) {
+            await api(CFG.EP.register, {
+                method: 'POST',
+                body: f
+            });
+        }
+
+        const d = await api(CFG.EP.login, {
+            method: 'POST',
+            body: {
+                username: f.username,
+                password: f.password
+            }
+        });
+
+        S.token = d.access || d.token || d.key;
+
+        if (!S.token) {
+            throw Error('Backend không trả về access token.');
+        }
+
+        ls('tk', S.token);
+
+        // Lấy thông tin tài khoản từ API /taikhoan/me/
+        S.user = await api(CFG.EP.me);
+
+        ls('us', JSON.stringify(S.user));
+
+        location.hash = '#/dashboard';
+        route();
+
+    } catch (x) {
+        $('#aerr').textContent = x.message;
+        b.disabled = false;
+    }
+}
+
+
+function logout() {
+    S.token = null;
+    S.user = null;
+
+    ls('tk', null);
+    ls('us', null);
+
+    location.hash = '';
+    showAuth();
+}
+
+
+/* =========================================================
+   ROUTER
+========================================================= */
+
+const V = {
+    dashboard,
+    inbox,
+    detail,
+    roadmap,
+    ai,
+    users
+};
+
+const NAV = [
+    ['dashboard', 'Tổng quan'],
+    ['inbox', 'Hộp thư'],
+    ['roadmap', 'Roadmap'],
+    ['ai', 'Insight AI'],
+    ['users', 'Người dùng']
+];
+
+async function route() {
+    if (!S.token) {
+        showAuth();
+        return;
+    }
+
+    $('#auth').hidden = true;
+    $('#app').hidden = false;
+
+    const [p, id] = location.hash.slice(2).split('/');
+    const cur = V[p] ? p : 'dashboard';
+
+    $('#meName').textContent =
+        S.user?.ho_ten || S.user?.username || 'Tài khoản';
+
+    $('#meRole').textContent =
+        ROLES[getRole()] || 'Tài khoản nội bộ';
+
+    $('#nav').innerHTML = NAV
+        .filter(n => n[0] !== 'users' || canAdmin())
+        .map(n => `
+            <a href="#/${n[0]}"
+                class="${(cur === n[0] || (cur === 'detail' && n[0] === 'inbox')) ? 'on' : ''}">
+                ${n[1]}
+            </a>
+        `).join('');
+
+    $('#main').innerHTML = '<p class="sub">Đang tải…</p>';
+    redraw = null;
+
+    try {
+        await V[cur](id);
+    } catch (e) {
+        $('#main').innerHTML = `
+            <div class="card">
+                <h3>Không tải được dữ liệu</h3>
+                <p class="sub">${esc(e.message)}</p>
+                <button class="btn" onclick="route()">Thử lại</button>
+            </div>
+        `;
+    }
+}
+
+addEventListener('hashchange', route);
+
+
+/* =========================================================
+   TỔNG QUAN
+========================================================= */
+
+async function dashboard() {
+    await loadFb();
+
+    const f = S.fbs;
+    const countStatus = s => f.filter(x => x.status === s).length;
+
+    const tags = {};
+
+    f.forEach(x => {
+        x.tags.forEach(t => {
+            tags[t] = (tags[t] || 0) + 1;
+        });
+    });
+
+    const top = [...f]
+        .sort((a, b) => b.votes - a.votes)
+        .slice(0, 5);
+
+    const max = Math.max(1, ...Object.keys(ST).map(s => countStatus(s)));
+
+    $('#main').innerHTML = `
+        <h1>Tổng quan</h1>
+        <p class="sub">Tình hình feedback của sản phẩm</p>
+
+        <div class="grid g4">
+            ${[
+                ['Tổng feedback', f.length],
+                ['Chờ xử lý', countStatus('Pending')],
+                ['Đang xử lý', countStatus('In Progress')],
+                ['Đã hoàn thành', countStatus('Done')],
+                ['Tổng lượt vote', f.reduce((a, x) => a + x.votes, 0)]
+            ].map(([l, n]) => `
+                <div class="card stat">
+                    <b>${n}</b>
+                    <span>${l}</span>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="grid g2" style="margin-top:14px">
+            <div class="card">
+                <h3>Theo trạng thái</h3>
+
+                ${Object.keys(ST).map(s => `
+                    <div class="hb">
+                        <span>${stl(s)[0]}</span>
+                        <i style="width:${countStatus(s) / max * 100}%;background:${stl(s)[1]}"></i>
+                        <em>${countStatus(s)}</em>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="card">
+                <h3>Được vote nhiều nhất</h3>
+
+                ${top.map(x => `
+                    <a class="mini" href="#/detail/${x.id}">
+                        <b>${x.votes}</b>
+                        <span>${esc(x.title)}</span>
+                    </a>
+                `).join('') || '<p class="empty">Chưa có feedback nào.</p>'}
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:14px">
+            <h3>Tag phổ biến</h3>
+
+            ${Object.entries(tags)
+                .sort((a, b) => b[1] - a[1])
+                .map(([t, n]) => `
+                    <span class="tag">${esc(t)} · ${n}</span>
+                `).join('') || '<span class="sub">Chưa có tag.</span>'}
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   HỘP THƯ FEEDBACK
+========================================================= */
+
+async function inbox() {
+    await loadFb();
+
+    const tags = [...new Set(S.fbs.flatMap(x => x.tags))];
+
+    $('#main').innerHTML = `
+        <div class="top">
+            <div>
+                <h1>Hộp thư feedback</h1>
+                <p class="sub">Góp ý từ form, email, chat và cộng đồng</p>
+            </div>
+
+            <button class="btn" onclick="edit()">Thêm feedback</button>
+        </div>
+
+        <div class="bar">
+            <input id="q" placeholder="Tìm theo tiêu đề hoặc nội dung…">
+
+            <select id="fs">
+                <option value="">Mọi trạng thái</option>
+                ${Object.keys(ST).map(s => `
+                    <option value="${s}">${stl(s)[0]}</option>
+                `).join('')}
+            </select>
+
+            <select id="ft">
+                <option value="">Mọi tag</option>
+                ${tags.map(t => `
+                    <option>${esc(t)}</option>
+                `).join('')}
+            </select>
+
+            <select id="fo">
+                <option value="v">Nhiều vote nhất</option>
+                <option value="n">Mới nhất</option>
+            </select>
+        </div>
+
+        <div class="card" style="padding:0" id="list"></div>
+    `;
+
+    redraw = () => {
+        const q = $('#q').value.toLowerCase();
+        const s = $('#fs').value;
+        const t = $('#ft').value;
+
+        const l = S.fbs
+            .filter(x =>
+                (!q || (x.title + x.desc).toLowerCase().includes(q)) &&
+                (!s || x.status === s) &&
+                (!t || x.tags.includes(t))
+            )
+            .sort((a, b) =>
+                $('#fo').value === 'v'
+                    ? b.votes - a.votes
+                    : new Date(b.at) - new Date(a.at)
+            );
+
+        $('#list').innerHTML = l.map(x => `
+            <div class="row" onclick="location.hash='#/detail/${x.id}'">
+
+                <button class="vote" onclick="vote(event,${x.id})">
+                    ▲ ${x.votes}
+                    <small>vote</small>
+                </button>
+
+                <div class="t">
+                    <b>${esc(x.title)}</b>
+
+                    <span>
+                        ${esc(x.by)}
+                        ${x.at ? ' · ' + fdate(x.at) : ''}
+                        ${x.src ? ' · ' + esc(x.src) : ''}
+                    </span>
+
+                    <div>
+                        ${x.tags.map(t => `
+                            <span class="tag">${esc(t)}</span>
+                        `).join('')}
+                    </div>
+                </div>
+
+                ${chip(x.status)}
+            </div>
+        `).join('') || `
+            <p class="empty">
+                Không có feedback phù hợp. Thử đổi bộ lọc hoặc thêm feedback mới.
+            </p>
+        `;
+    };
+
+    ['q', 'fs', 'ft', 'fo'].forEach(i => {
+        $('#' + i).oninput = redraw;
+    });
+
+    redraw();
+}
+
+
+/* =========================================================
+   BÌNH CHỌN
+   Backend sử dụng API /binhchon/
+========================================================= */
+
+const vote = safe(async (e, id) => {
+    e.stopPropagation();
+
+    await api(CFG.EP.vote, {
+        method: 'POST',
+        body: {
+            ma_phan_hoi: id
+        }
+    });
+
+    await loadVotes();
+    await loadFb();
+
+    if (CUR?.id === id) {
+        CUR = S.fbs.find(x => Number(x.id) === Number(id));
+    }
+
+    if (redraw) {
+        redraw();
+    } else {
+        route();
+    }
+
+    toast('Đã ghi nhận vote');
+});
+
+
+/* =========================================================
+   CHI TIẾT FEEDBACK
+========================================================= */
+
+async function detail(id) {
+    await loadTags();
+    await loadVotes();
+
+    const data = await api(CFG.EP.fb + id + '/');
+
+    CUR = nf(data);
+
+    const st = isStaff();
+
+    $('#main').innerHTML = `
+        <a class="back" href="#/inbox">← Về hộp thư</a>
+
+        <div class="split">
+            <div class="card">
+                <h1>${esc(CUR.title)}</h1>
+
+                <p class="sub">
+                    ${esc(CUR.by)}
+                    ${CUR.at ? ' · ' + fdate(CUR.at) : ''}
+                    ${CUR.src ? ' · ' + esc(CUR.src) : ''}
+                </p>
+
+                <p class="body">
+                    ${esc(CUR.desc) || 'Chưa có mô tả.'}
+                </p>
+
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button class="btn ghost" onclick="edit(true)">
+                        Chỉnh sửa
+                    </button>
+
+                    <button class="btn bad" onclick="del()">
+                        Xóa
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
+                <label style="margin-top:0">Trạng thái</label>
+
+                ${st ? `
+                    <select onchange="patch({trang_thai:this.value})">
+                        ${Object.keys(ST).map(s => `
+                            <option value="${s}" ${s === CUR.status ? 'selected' : ''}>
+                                ${stl(s)[0]}
+                            </option>
+                        `).join('')}
+                    </select>
+                ` : chip(CUR.status)}
+
+                <label>Tag</label>
+
+                <div>
+                    ${CUR.tags.map(t => `
+                        <span class="tag">
+                            ${esc(t)}
+                            ${st ? `
+                                <u onclick="rmTag('${esc(t).replace(/'/g, '')}')">×</u>
+                            ` : ''}
+                        </span>
+                    `).join('') || '<span class="sub">Chưa có tag</span>'}
+                </div>
+
+                ${st ? `
+                    <input
+                        placeholder="Nhập tag rồi nhấn Enter"
+                        onkeydown="addTag(event)"
+                        style="margin-top:6px">
+                ` : ''}
+
+                <label>Lượt vote</label>
+
+                <button class="vote" style="width:100%"
+                    onclick="vote(event,${CUR.id})">
+                    ▲ ${CUR.votes} · Vote cho feedback này
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   CẬP NHẬT FEEDBACK
+========================================================= */
+
+const patch = safe(async b => {
+    await api(CFG.EP.fb + CUR.id + '/', {
+        method: 'PATCH',
+        body: b
+    });
+
+    toast('Đã cập nhật');
+    route();
+});
+
+
+/* =========================================================
+   QUẢN LÝ TAG
+   Tag là bảng riêng, feedback lưu danh sách ma_tag
+========================================================= */
+
+const addTag = async e => {
+    if (e.key !== 'Enter') return;
+
+    e.preventDefault();
+
+    const v = e.target.value.trim();
+
+    if (!v || CUR.tags.includes(v)) return;
+
+    try {
+        let tag = S.tags.find(t =>
+            t.ten_tag.toLowerCase() === v.toLowerCase() &&
+            Number(t.ma_san_pham) === Number(CUR.productId)
+        );
+
+        if (!tag) {
+            tag = await api(CFG.EP.tags, {
+                method: 'POST',
+                body: {
+                    ten_tag: v,
+                    ma_san_pham: CUR.productId
+                }
+            });
+
+            S.tags.push(tag);
+        }
+
+        const ids = [...CUR.tagIds, tag.ma_tag];
+
+        await api(CFG.EP.fb + CUR.id + '/', {
+            method: 'PATCH',
+            body: {
+                tags: ids
+            }
+        });
+
+        toast('Đã thêm tag');
+        route();
+
+    } catch (x) {
+        toast(x.message, true);
+    }
+};
+
+
+const rmTag = safe(async t => {
+    const tag = S.tags.find(x => x.ten_tag === t);
+
+    if (!tag) return;
+
+    const ids = CUR.tagIds.filter(id => id !== tag.ma_tag);
+
+    await api(CFG.EP.fb + CUR.id + '/', {
+        method: 'PATCH',
+        body: {
+            tags: ids
+        }
+    });
+
+    toast('Đã xóa tag khỏi feedback');
+    route();
+});
+
+
+/* =========================================================
+   XÓA FEEDBACK
+========================================================= */
+
+const del = safe(async () => {
+    if (!confirm('Xóa feedback này?')) return;
+
+    await api(CFG.EP.fb + CUR.id + '/', {
+        method: 'DELETE'
+    });
+
+    toast('Đã xóa');
+    location.hash = '#/inbox';
+});
+
+
+/* =========================================================
+   THÊM / CHỈNH SỬA FEEDBACK
+========================================================= */
+
+async function edit(isEdit) {
+    const x = isEdit
+        ? CUR
+        : {
+            title: '',
+            desc: '',
+            tags: [],
+            status: 'Pending',
+            productId: S.products[0]?.ma_san_pham
+        };
+
+    if (!isEdit) {
+        try {
+            await loadProducts();
+        } catch (e) {}
+    }
+
+    modal(`
+        <h3>${isEdit ? 'Chỉnh sửa feedback' : 'Thêm feedback'}</h3>
+
+        <form onsubmit="save(event,${!!isEdit})">
+
+            <label style="margin-top:0">Tiêu đề</label>
+            <input name="title" required value="${esc(x.title)}">
+
+            <label>Nội dung</label>
+            <textarea name="description" rows="5">${esc(x.desc)}</textarea>
+
+            <label>Người gửi</label>
+            <input name="sender" value="${esc(x.by || '')}"
+                placeholder="Tên người gửi">
+
+            <label>Email người gửi</label>
+            <input name="email" type="email" value="${esc(x.email || '')}"
+                placeholder="Email người gửi">
+
+            <label>Nguồn tiếp nhận</label>
+            <select name="source">
+                ${['Form', 'Email', 'Chat', 'Community'].map(s => `
+                    <option value="${s}" ${s === x.src ? 'selected' : ''}>
+                        ${s}
+                    </option>
+                `).join('')}
+            </select>
+
+            ${!isEdit ? `
+                <label>Sản phẩm</label>
+                <select name="productId" required>
+                    ${S.products.map(p => `
+                        <option value="${p.ma_san_pham}"
+                            ${Number(p.ma_san_pham) === Number(x.productId) ? 'selected' : ''}>
+                            ${esc(p.ten_san_pham)}
+                        </option>
+                    `).join('')}
+                </select>
+            ` : ''}
+
+            <label>Tag (cách nhau bằng dấu phẩy)</label>
+            <input name="tags" value="${esc(x.tags.join(', '))}">
+
+            ${isStaff() ? `
+                <label>Trạng thái</label>
+                <select name="status">
+                    ${Object.keys(ST).map(s => `
+                        <option value="${s}" ${s === x.status ? 'selected' : ''}>
+                            ${stl(s)[0]}
+                        </option>
+                    `).join('')}
+                </select>
+            ` : ''}
+
+            <div style="display:flex;gap:8px;margin-top:18px">
+                <button class="btn">Lưu</button>
+                <button type="button" class="btn ghost" onclick="closeM()">Hủy</button>
+            </div>
+        </form>
+    `);
+}
+
+
+const save = safe(async (e, isEdit) => {
+    e.preventDefault();
+
+    const f = Object.fromEntries(new FormData(e.target));
+
+    const productId = isEdit
+        ? CUR.productId
+        : Number(f.productId);
+
+    const body = {
+        tieu_de: f.title,
+        noi_dung: f.description,
+        ten_nguoi_gui: f.sender,
+        email_nguoi_gui: f.email,
+        nguon_tiep_nhan: f.source
+    };
+
+    if (!isEdit) {
+        body.ma_san_pham = productId;
+    }
+
+    if (f.status) {
+        body.trang_thai = f.status;
+    }
+
+    // Chuyển tên tag thành ma_tag trước khi gửi Backend
+    const tagNames = f.tags
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean);
+
+    const tagIds = [];
+
+    for (const name of tagNames) {
+        let tag = S.tags.find(t =>
+            t.ten_tag.toLowerCase() === name.toLowerCase() &&
+            Number(t.ma_san_pham) === Number(productId)
+        );
+
+        if (!tag) {
+            tag = await api(CFG.EP.tags, {
+                method: 'POST',
+                body: {
+                    ten_tag: name,
+                    ma_san_pham: productId
+                }
+            });
+
+            S.tags.push(tag);
+        }
+
+        tagIds.push(tag.ma_tag);
+    }
+
+    body.tags = tagIds;
+
+    await api(
+        CFG.EP.fb + (isEdit ? CUR.id + '/' : ''),
+        {
+            method: isEdit ? 'PATCH' : 'POST',
+            body
+        }
+    );
+
+    closeM();
+    toast('Đã lưu feedback');
+    route();
+});
+
+
+/* =========================================================
+   ROADMAP
+   Lấy dữ liệu thực từ API /roadmap/
+========================================================= */
+
+async function roadmap() {
+    await loadRoadmaps();
+
+    const st = isStaff();
+
+    let mode = st && ls('rm') === 'pri'
+        ? 'pri'
+        : 'pub';
+
+    const draw = () => {
+        const data = S.roadmaps.filter(x =>
+            mode === 'pri' || x.cong_khai === true
+        );
+
+        const cols = [
+            ['Pending', 'Chờ xử lý'],
+            ['In Progress', 'Đang thực hiện'],
+            ['Done', 'Hoàn thành']
+        ];
+
+        $('#main').innerHTML = `
+            <h1>Roadmap</h1>
+
+            <p class="sub">
+                ${mode === 'pri'
+                    ? 'Bản nội bộ: gồm cả công việc chưa công khai'
+                    : 'Bản công khai: những gì khách hàng được xem'
+                }
+            </p>
+
+            ${st ? `
+                <div class="seg">
+                    <button class="${mode === 'pub' ? 'on' : ''}"
+                        onclick="rm('pub')">Public</button>
+
+                    <button class="${mode === 'pri' ? 'on' : ''}"
+                        onclick="rm('pri')">Private</button>
+                </div>
+            ` : ''}
+
+            <div class="kan">
+                ${cols.map(([status, label]) => {
+                    const list = data.filter(x => x.trang_thai === status);
+
+                    return `
+                        <div class="col">
+                            <h3>
+                                ${chip(status)}
+                                <span>${list.length}</span>
+                            </h3>
+
+                            ${list.map(x => `
+                                <div class="kc">
+                                    <b>${esc(x.ten_cong_viec)}</b>
+                                    <br>
+                                    <small>
+                                        Ưu tiên: ${x.do_uu_tien}
+                                        · ${x.cong_khai ? 'Public' : 'Private'}
+                                    </small>
+                                </div>
+                            `).join('') || '<p class="empty">Trống</p>'}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    };
+
+    window.rm = m => {
+        mode = m;
+        ls('rm', m);
+        draw();
+    };
+
+    draw();
+}
+
+
+/* =========================================================
+   INSIGHT AI
+   Backend hiện chưa có API /ai/insights/
+   Tạm giữ thuật toán phân tích cục bộ để giao diện vẫn dùng được.
+========================================================= */
+
+function localAI() {
+    const stop = new Set(
+        'của và các cho với một những được này khi trong không có để là the and for'.split(' ')
+    );
+
+    const tok = x => new Set(
+        ((x.title + ' ' + x.desc).toLowerCase().match(/[\p{L}\d]+/gu) || [])
+            .filter(w => w.length > 2 && !stop.has(w))
+    );
+
+    const f = S.fbs;
+    const T = f.map(tok);
+    const p = f.map((_, i) => i);
+
+    const find = i => p[i] === i ? i : p[i] = find(p[i]);
+
+    for (let i = 0; i < f.length; i++) {
+        for (let j = i + 1; j < f.length; j++) {
+            const sh = [...T[i]].filter(w => T[j].has(w)).length;
+            const m = Math.min(T[i].size, T[j].size) || 1;
+
+            if (
+                sh / m >= 0.5 ||
+                f[i].tags.some(t => f[j].tags.includes(t))
+            ) {
+                p[find(j)] = find(i);
+            }
+        }
+    }
+
+    const g = {};
+
+    f.forEach((x, i) => {
+        (g[find(i)] ??= []).push(x.id);
+    });
+
+    return Object.values(g).map(ids => {
+        const m = ids.map(id => f.find(x => x.id === id));
+        const tc = {};
+
+        m.forEach(x => {
+            x.tags.forEach(t => {
+                tc[t] = (tc[t] || 0) + 1;
+            });
+        });
+
+        const top = Object.entries(tc).sort((a, b) => b[1] - a[1])[0];
+
+        return {
+            title: top ? top[0] : m[0].title,
+            summary: `${m.length} góp ý tương tự, tổng ${m.reduce((a, x) => a + x.votes, 0)} lượt vote. Ví dụ: “${m[0].title}”.`,
+            ids
+        };
+    });
+}
+
+
+async function ai() {
+    await loadFb();
+
+    $('#main').innerHTML = `
+        <div class="top">
+            <div>
+                <h1>Insight bằng AI</h1>
+                <p class="sub">
+                    Gom feedback trùng lặp, tóm tắt insight và đề xuất mức ưu tiên
+                </p>
+            </div>
+
+            <button class="btn" id="run">
+                Phân tích ${S.fbs.length} feedback
+            </button>
+        </div>
+
+        <div id="out"></div>
+    `;
+
+    $('#run').onclick = async () => {
+        const b = $('#run');
+
+        b.disabled = true;
+        b.textContent = 'Đang phân tích…';
+
+        // Hiện tại chưa có API AI trong Backend.
+        // Dùng localAI để giữ chức năng phân tích trên giao diện.
+        const cl = localAI();
+
+        cl.forEach(c => {
+            const m = c.ids
+                .map(id => S.fbs.find(x => x.id === id))
+                .filter(Boolean);
+
+            c.items = m;
+            c.votes = m.reduce((a, x) => a + x.votes, 0);
+            c.score = c.votes + 2 * m.length;
+        });
+
+        const mx = Math.max(1, ...cl.map(c => c.score));
+
+        cl.sort((a, b) => b.score - a.score);
+
+        cl.forEach(c => {
+            c.priority = c.score >= 0.66 * mx
+                ? 'high'
+                : c.score >= 0.33 * mx
+                    ? 'medium'
+                    : 'low';
+        });
+
+        const P = {
+            high: ['Ưu tiên cao', '#d6455d', '#fdebee'],
+            medium: ['Ưu tiên vừa', '#b7791f', '#fff4dc'],
+            low: ['Ưu tiên thấp', '#64708a', '#eef1f6']
+        };
+
+        window.CL = cl;
+
+        $('#out').innerHTML = `
+            <p class="sub">
+                Đang sử dụng phân tích cục bộ theo từ khóa và tag.
+                Chưa kết nối AI Backend.
+            </p>
+
+            <div class="grid">
+                ${cl.map((c, i) => {
+                    const p = P[c.priority] || P.low;
+
+                    return `
+                        <div class="card">
+                            <div class="top">
+                                <h3>${esc(c.title)}</h3>
+
+                                <span class="chip"
+                                    style="color:${p[1]};background:${p[2]}">
+                                    ${p[0]}
+                                </span>
+                            </div>
+
+                            <p>${esc(c.summary)}</p>
+
+                            <p class="sub" style="margin:8px 0">
+                                ${c.items.length} feedback · ${c.votes} lượt vote
+                            </p>
+
+                            ${c.items.map(x => `
+                                <a class="mini" href="#/detail/${x.id}">
+                                    <b>▲ ${x.votes}</b>
+                                    <span>${esc(x.title)}</span>
+                                </a>
+                            `).join('')}
+
+                            <button class="btn ghost" style="margin-top:12px"
+                                onclick="draft(${i})">
+                                Tạo nháp phản hồi khách hàng
+                            </button>
+                        </div>
+                    `;
+                }).join('') || '<p class="empty">Chưa có feedback để phân tích.</p>'}
+            </div>
+        `;
+
+        b.disabled = false;
+        b.textContent = 'Phân tích lại';
+    };
+}
+
+
+/* =========================================================
+   TẠO NHÁP PHẢN HỒI KHÁCH HÀNG
+========================================================= */
+
+function draft(i) {
+    const c = CL[i];
+
+    const t = `Chào bạn,
+
+Cảm ơn bạn đã góp ý về "${c.title}". Chúng mình đã ghi nhận ý kiến của bạn cùng ${Math.max(0, c.items.length - 1)} góp ý tương tự và đang xem xét để đưa vào kế hoạch phát triển.
+
+Chúng mình sẽ cập nhật tiến độ trên roadmap và thông báo ngay khi có thay đổi.
+
+Trân trọng,
+Đội sản phẩm`;
+
+    modal(`
+        <h3>Nháp phản hồi</h3>
+
+        <textarea id="dt" rows="10">${esc(t)}</textarea>
+
+        <div style="display:flex;gap:8px;margin-top:16px">
+            <button class="btn" onclick="copyDraft()">Sao chép</button>
+            <button class="btn ghost" onclick="closeM()">Đóng</button>
+        </div>
+    `);
+}
+
+
+function copyDraft() {
+    const text = $('#dt').value;
+
+    navigator.clipboard.writeText(text)
+        .then(() => toast('Đã sao chép'))
+        .catch(() => toast('Không thể sao chép nội dung', true));
+}
+
+
+/* =========================================================
+   QUẢN LÝ NGƯỜI DÙNG
+   Backend hiện chưa có API /users/
+========================================================= */
+
+async function users() {
+    $('#main').innerHTML = `
+        <h1>Người dùng</h1>
+
+        <p class="sub">Phân quyền và quản lý tài khoản</p>
+
+        <div class="card">
+            <h3>Chức năng chưa được kết nối</h3>
+
+            <p class="sub">
+                Backend hiện tại chưa có API danh sách và cập nhật người dùng.
+                Chức năng này cần bổ sung endpoint quản lý tài khoản trước khi sử dụng.
+            </p>
+        </div>
+    `;
+}
+
+
+/* =========================================================
+   KHỞI CHẠY
+========================================================= */
+
+async function init() {
+    if (!S.token) {
+        showAuth();
+        return;
+    }
+
+    try {
+        // Kiểm tra token và lấy thông tin tài khoản
+        S.user = await api(CFG.EP.me);
+        ls('us', JSON.stringify(S.user));
+
+        route();
+
+    } catch (e) {
+        logout();
+    }
+}
+
+init();
+
 </script>
 </body>
 </html>
