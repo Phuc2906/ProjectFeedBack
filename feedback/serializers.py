@@ -114,8 +114,6 @@ class PhanHoiSerializer(serializers.ModelSerializer):
         # Khi cập nhật, giữ nguyên thông tin người gửi ban đầu
         else:
             attrs['ma_tai_khoan'] = self.instance.ma_tai_khoan
-            attrs['ten_nguoi_gui'] = self.instance.ten_nguoi_gui
-            attrs['email_nguoi_gui'] = self.instance.email_nguoi_gui
 
                 # Kiểm tra Tag thuộc cùng sản phẩm với feedback
         tags = attrs.get(

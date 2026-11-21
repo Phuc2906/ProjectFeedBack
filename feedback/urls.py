@@ -4,7 +4,7 @@ from .views import (
     SanPhamViewSet, TagViewSet,
     BinhChonViewSet, NhomAIViewSet,
     ChiTietNhomAIViewSet, RoadmapViewSet,
-    TaiKhoanView
+    TaiKhoanView, PublicSanPhamListView
 )
 from django.urls import path, include
 
@@ -22,4 +22,9 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('', include(router.urls)),
     path('taikhoan/me/', TaiKhoanView.as_view(), name='tai-khoan-me'),
+    path(
+    'public/sanpham/',
+    PublicSanPhamListView.as_view(),
+    name='public-san-pham'
+),
 ]

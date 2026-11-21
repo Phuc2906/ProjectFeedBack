@@ -303,6 +303,9 @@ function showAuth(mode = 'login') {
                 <input name="username" required autocomplete="username">
 
                 ${reg ? `
+                    <label>Họ tên</label>
+                    <input name="ho_ten" required>
+
                     <label>Email</label>
                     <input name="email" type="email" required>
                 ` : ''}

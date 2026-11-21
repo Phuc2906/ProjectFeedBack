@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/form.css">
+    <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <title>Gửi phản hồi - FeedLoop</title>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Gửi phản hồi sản phẩm</h1>
+
+        <p class="description">
+            Chia sẻ ý kiến của bạn để giúp chúng tôi cải thiện sản phẩm.
+        </p>
+
+        <form id="feedbackForm">
+
+            <div class="form-group">
+                <label>Họ tên</label>
+                <input type="text" name="ten_nguoi_gui" required>
+            </div>
+
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email_nguoi_gui" required>
+            </div>
+
+            <div class="form-group">
+                <label>Sản phẩm</label>
+                <select name="ma_san_pham" id="productSelect" required>
+                    <option value="">Đang tải sản phẩm...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Tiêu đề</label>
+                <input type="text" name="tieu_de" required>
+            </div>
+
+            <div class="form-group">
+                <label>Nội dung phản hồi</label>
+                <textarea name="noi_dung" required></textarea>
+            </div>
+
+            <button type="submit">Gửi phản hồi</button>
+
+        </form>
+    </div>
+
+    <script src="js/form.js"></script>
+</body>
+</html>

@@ -33,18 +33,11 @@ class PhanHoiViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         user = self.request.user
 
-        # Product chỉ xem feedback thuộc sản phẩm của mình
+    # Tất cả tài khoản nội bộ đều xem được toàn bộ feedback
         if user.is_authenticated:
-            role = user.tai_khoan.vai_tro
-
-            if role == 'Product':
-                return PhanHoi.objects.filter(
-                    ma_san_pham__ma_tai_khoan=user.tai_khoan
-                ).order_by('-ngay_tao')
-
             return PhanHoi.objects.all().order_by('-ngay_tao')
 
-        # Khách bên ngoài không được xem danh sách feedback
+    # Khách bên ngoài không được xem danh sách feedback
         return PhanHoi.objects.none()
 
     # Gửi email khi trạng thái phản hồi thay đổi
@@ -56,6 +49,20 @@ class PhanHoiViewSet(viewsets.ModelViewSet):
         if old_status != feedback.trang_thai:
             send_feedback_status_email(feedback)
 
+
+# DANH SÁCH SẢN PHẨM CÔNG KHAI
+class PublicSanPhamListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        san_pham = SanPham.objects.all().order_by('ten_san_pham')
+
+        data = san_pham.values(
+            'ma_san_pham',
+            'ten_san_pham'
+        )
+
+        return Response(data)
 
 
 # 2. QUẢN LÝ SẢN PHẨM
