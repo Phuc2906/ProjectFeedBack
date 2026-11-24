@@ -1,0 +1,29 @@
+[
+{
+    "model": "feedback.sanpham",
+    "pk": 1,
+    "fields": {
+        "ma_tai_khoan": 1,
+        "ten_san_pham": "Feedback Management",
+        "mo_ta": "Hệ thống quản lý phản hồi khách hàng và phân tích insight bằng AI"
+    }
+},
+{
+    "model": "feedback.sanpham",
+    "pk": 2,
+    "fields": {
+        "ma_tai_khoan": 1,
+        "ten_san_pham": "Product Test API",
+        "mo_ta": "Kiểm thử quyền tạo sản phẩm"
+    }
+},
+{
+    "model": "feedback.sanpham",
+    "pk": 3,
+    "fields": {
+        "ma_tai_khoan": 3,
+        "ten_san_pham": "Sản phẩm Test Nhóm AI",
+        "mo_ta": "Sản phẩm dùng để kiểm thử API Nhóm AI"
+    }
+}
+]

@@ -159,4 +159,6 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5500",
     "http://localhost:5500",
+    "https://superlative-sorbet-c56d23.netlify.app",
+    "https://6b055f5d39a27714eff82fa6--superlative-sorbet-c56d23.netlify.app",
 ]
