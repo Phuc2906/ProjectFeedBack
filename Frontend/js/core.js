@@ -3,13 +3,7 @@
 ========================================================= */
 
 const CFG = {
-    API: (() => {
-        try {
-            return localStorage.getItem('api');
-        } catch (e) {
-            return null;
-        }
-    })() || 'http://127.0.0.1:8000/api',
+    API: 'https://projectfeedback.onrender.com/api',
 
     AUTH: 'Bearer',
 
