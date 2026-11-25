@@ -68,3 +68,23 @@ th{color:var(--mut);font-weight:600;font-size:13px}td select{width:auto}
 .main{padding:20px 16px}.split{grid-template-columns:1fr}.auth{grid-template-columns:1fr}.hero{padding:30px}.hero h2{font-size:28px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.customer-link {
+    position: fixed;
+    top: 18px;
+    right: 25px;
+    z-index: 1000;
+
+    padding: 10px 16px;
+    border-radius: 8px;
+
+    background: #5265e8;
+    color: white;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.customer-link:hover {
+    background: #4052cf;
+}

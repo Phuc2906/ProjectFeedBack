@@ -59,7 +59,8 @@ class PublicSanPhamListView(APIView):
 
         data = san_pham.values(
             'ma_san_pham',
-            'ten_san_pham'
+            'ten_san_pham',
+            'mo_ta',
         )
 
         return Response(data)
