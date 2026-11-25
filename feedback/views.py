@@ -72,15 +72,8 @@ class SanPhamViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsProductOrReadOnly]
 
     def get_queryset(self):
-        user = self.request.user
-        role = user.tai_khoan.vai_tro
-
-        if role == 'Product':
-            return SanPham.objects.filter(
-                ma_tai_khoan=user.tai_khoan
-            )
-
-        return SanPham.objects.all()
+        return SanPham.objects.all().order_by('ten_san_pham')
+    
 
 class TagViewSet(viewsets.ModelViewSet):
     serializer_class = TagSerializer
