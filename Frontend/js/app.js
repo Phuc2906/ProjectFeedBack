@@ -39,14 +39,16 @@ async function route() {
     $('#meRole').textContent =
         ROLES[getRole()] || 'Tài khoản nội bộ';
 
-    $('#nav').innerHTML = NAV
-        .filter(n => n[0] !== 'users' || canAdmin())
-        .map(n => `
-            <a href="#/${n[0]}"
-                class="${(cur === n[0] || (cur === 'detail' && n[0] === 'inbox')) ? 'on' : ''}">
-                ${n[1]}
-            </a>
-        `).join('');
+    
+$('#nav').innerHTML = NAV
+    .filter(n => n[0] !== 'users' || canAdmin())
+    .map(n => `
+        <a href="#/${n[0]}"
+            class="${(cur === n[0] || (cur === 'detail' && n[0] === 'inbox')) ? 'on' : ''}">
+            ${n[1]}
+        </a>
+    `).join('');
+
 
     $('#main').innerHTML = '<p class="sub">Đang tải…</p>';
     redraw = null;
@@ -112,6 +114,99 @@ async function products() {
         </div>
     `;
 }
+
+
+/* =========================================================
+   THÊM SẢN PHẨM
+========================================================= */
+
+function addProduct() {
+    if (getRole() !== 'Product') {
+        toast('Bạn không có quyền thêm sản phẩm.', true);
+        return;
+    }
+
+    modal(`
+        <h3>Thêm sản phẩm mới</h3>
+
+        <form onsubmit="saveProduct(event)">
+            <label>Tên sản phẩm</label>
+            <input
+                name="ten_san_pham"
+                placeholder="Nhập tên sản phẩm..."
+                maxlength="200"
+                required
+            >
+
+            <label>Mô tả sản phẩm</label>
+            <textarea
+                name="mo_ta"
+                placeholder="Nhập mô tả sản phẩm..."
+                rows="4"
+            ></textarea>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+                <button type="button" class="btn ghost" onclick="closeM()">
+                    Hủy
+                </button>
+
+                <button type="submit" class="btn">
+                    Thêm sản phẩm
+                </button>
+            </div>
+        </form>
+    `);
+}
+
+
+/* =========================================================
+   LƯU SẢN PHẨM
+========================================================= */
+
+async function saveProduct(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const btn = form.querySelector('button[type="submit"]');
+
+    const ten = form.elements['ten_san_pham'].value.trim();
+    const moTa = form.elements['mo_ta'].value.trim();
+
+    if (!ten) {
+        toast('Vui lòng nhập tên sản phẩm.', true);
+        return;
+    }
+
+    if (!S.user?.ma_tai_khoan) {
+        toast('Không tìm thấy thông tin tài khoản.', true);
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Đang lưu...';
+
+    try {
+        await api(CFG.EP.products, {
+            method: 'POST',
+            body: {
+                ma_tai_khoan: S.user.ma_tai_khoan,
+                ten_san_pham: ten,
+                mo_ta: moTa
+            }
+        });
+
+        closeM();
+        toast('Thêm sản phẩm thành công!');
+
+        await products();
+
+    } catch (e) {
+        toast(e.message, true);
+        btn.disabled = false;
+        btn.textContent = 'Thêm sản phẩm';
+    }
+}
+
 
 /* =========================================================
    QUẢN LÝ NGƯỜI DÙNG

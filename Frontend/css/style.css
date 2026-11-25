@@ -70,21 +70,19 @@ th{color:var(--mut);font-weight:600;font-size:13px}td select{width:auto}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
 .customer-link {
-    position: fixed;
-    top: 18px;
-    right: 25px;
-    z-index: 1000;
-
-    padding: 10px 16px;
-    border-radius: 8px;
-
-    background: #5265e8;
-    color: white;
+    display: block;
+    margin-top: 16px;
+    padding: 11px 14px;
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 10px;
+    color: #fff;
     text-decoration: none;
     font-weight: 600;
-    font-size: 13px;
+    text-align: center;
 }
 
 .customer-link:hover {
-    background: #4052cf;
+    background: rgba(255,255,255,.1);
 }
+
+
