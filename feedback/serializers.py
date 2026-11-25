@@ -315,8 +315,13 @@ class TaiKhoanSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = TaiKhoan
-        fields = ['ma_tai_khoan', 'ho_ten', 'email']
-        read_only_fields = ['ma_tai_khoan']
+        fields = [
+            'ma_tai_khoan',
+            'ho_ten',
+            'email',
+            'vai_tro'
+        ]
+        read_only_fields = ['ma_tai_khoan', 'vai_tro']
 
     def update(self, instance, validated_data):
         instance.ho_ten = validated_data.get(

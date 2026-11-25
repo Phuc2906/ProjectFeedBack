@@ -33,7 +33,7 @@ async function loadProducts() {
 
             const description = document.createElement('p');
             description.textContent =
-                'Tìm hiểu sản phẩm và chia sẻ ý kiến của bạn.';
+                product.mo_ta || 'Chưa có mô tả sản phẩm.';
 
             card.appendChild(title);
             card.appendChild(description);

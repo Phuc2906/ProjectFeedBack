@@ -8,12 +8,14 @@ const V = {
     detail,
     roadmap,
     ai,
-    users
+    users,
+    products
 };
 
 const NAV = [
     ['dashboard', 'Tổng quan'],
     ['inbox', 'Hộp thư'],
+    ['products', 'Sản phẩm'],
     ['roadmap', 'Roadmap'],
     ['ai', 'Insight AI'],
     ['users', 'Người dùng']
@@ -63,6 +65,53 @@ async function route() {
 }
 
 addEventListener('hashchange', route);
+
+/* =========================================================
+   QUẢN LÝ SẢN PHẨM
+========================================================= */
+
+async function products() {
+    await loadProducts();
+
+    const isProduct = getRole() === 'Product';
+
+    $('#main').innerHTML = `
+        <div class="top">
+            <div>
+                <h1>Quản lý sản phẩm</h1>
+                <p class="sub">
+                    Danh sách sản phẩm trong hệ thống
+                </p>
+            </div>
+
+            ${isProduct ? `
+                <button class="btn" onclick="addProduct()">
+                    + Thêm sản phẩm
+                </button>
+            ` : ''}
+        </div>
+
+        <div class="grid g2">
+            ${S.products.length ? S.products.map(p => `
+                <div class="card">
+                    <h3>${esc(p.ten_san_pham)}</h3>
+
+                    <p class="sub">
+                        ${esc(p.mo_ta || 'Chưa có mô tả sản phẩm.')}
+                    </p>
+
+                    <small class="sub">
+                        Mã sản phẩm: ${esc(p.ma_san_pham)}
+                    </small>
+                </div>
+            `).join('') : `
+                <div class="card empty">
+                    Chưa có sản phẩm nào.
+                </div>
+            `}
+        </div>
+    `;
+}
 
 /* =========================================================
    QUẢN LÝ NGƯỜI DÙNG
