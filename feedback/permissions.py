@@ -66,3 +66,19 @@ class IsDevRoadmap(BasePermission):
                 return set(request.data.keys()) <= {'trang_thai'}
 
         return request.method in SAFE_METHODS
+
+
+
+class IsProductTagManagement(BasePermission):
+    """Product quản lý Tag, CS và Dev chỉ được xem."""
+
+    def has_permission(self, request, view):
+        role = get_user_role(request.user)
+
+        # Các vai trò nội bộ đều được xem Tag
+        if request.method in SAFE_METHODS:
+            return role in ['Product', 'CS', 'Dev']
+
+        # Chỉ Product được tạo, sửa, xóa Tag
+        return role == 'Product'
+

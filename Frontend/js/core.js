@@ -102,6 +102,10 @@ const isStaff = () => !!S.token;
 
 const canAdmin = () => getRole() === 'Product';
 
+const canManageTags = () => getRole() === 'Product';
+
+const canAssignTags = () => getRole() === 'CS';
+
 
 const fdate = d => {
     const x = new Date(d);

@@ -19,7 +19,8 @@ from .serializers import (
 
 from .permissions import (
     IsProductOrReadOnly, IsCSFeedback,
-    IsReadOnlyForAll, IsDevRoadmap
+    IsReadOnlyForAll, IsDevRoadmap,
+    IsProductTagManagement
 )
 
 from .services import send_feedback_status_email
@@ -75,9 +76,13 @@ class SanPhamViewSet(viewsets.ModelViewSet):
         return SanPham.objects.all().order_by('ten_san_pham')
     
 
+
 class TagViewSet(viewsets.ModelViewSet):
     serializer_class = TagSerializer
-    permission_classes = [IsAuthenticated, IsProductOrReadOnly]
+    permission_classes = [
+        IsAuthenticated,
+        IsProductTagManagement
+    ]
 
     def get_queryset(self):
         user = self.request.user
@@ -89,8 +94,9 @@ class TagViewSet(viewsets.ModelViewSet):
                 ma_san_pham__ma_tai_khoan=user.tai_khoan
             )
 
-        # CS và Dev chỉ được xem Tag
+        # CS và Dev chỉ được xem Tag toàn hệ thống
         return Tag.objects.all()
+
 
 # 3. QUẢN LÝ BÌNH CHỌN
 class BinhChonViewSet(viewsets.ModelViewSet):

@@ -228,6 +228,12 @@ async function detail(id) {
 
     const st = isStaff();
 
+    const canAssign = canAssignTags();
+
+const availableTags = S.tags.filter(t =>
+    Number(t.ma_san_pham) === Number(CUR.productId)
+);
+
     $('#main').innerHTML = `
         <a class="back" href="#/inbox">← Về hộp thư</a>
 
@@ -271,23 +277,46 @@ async function detail(id) {
 
                 <label>Tag</label>
 
-                <div>
-                    ${CUR.tags.map(t => `
-                        <span class="tag">
-                            ${esc(t)}
-                            ${st ? `
-                                <u onclick="rmTag('${esc(t).replace(/'/g, '')}')">×</u>
-                            ` : ''}
-                        </span>
-                    `).join('') || '<span class="sub">Chưa có tag</span>'}
-                </div>
+<div>
+    ${CUR.tagIds.map(id => {
+        const tag = S.tags.find(
+            x => Number(x.ma_tag) === Number(id)
+        );
 
-                ${st ? `
-                    <input
-                        placeholder="Nhập tag rồi nhấn Enter"
-                        onkeydown="addTag(event)"
-                        style="margin-top:6px">
+        if (!tag) return '';
+
+        return `
+            <span class="tag">
+                ${esc(tag.ten_tag)}
+
+                ${canAssign ? `
+                    <u onclick="rmTag(${Number(id)})">×</u>
                 ` : ''}
+            </span>
+        `;
+    }).join('') || '<span class="sub">Chưa có tag</span>'}
+</div>
+
+${canAssign ? `
+    <select id="tagSelect" style="margin-top:8px">
+        <option value="">-- Chọn Tag để gắn --</option>
+
+        ${availableTags
+            .filter(t =>
+    !CUR.tagIds.some(id => Number(id) === Number(t.ma_tag))
+)
+            .map(t => `
+                <option value="${t.ma_tag}">
+                    ${esc(t.ten_tag)}
+                </option>
+            `).join('')}
+    </select>
+
+    <button class="btn" onclick="addTag()"
+        style="margin-top:6px">
+        Thêm Tag
+    </button>
+` : ''}
 
                 <label>Lượt vote</label>
 
@@ -321,57 +350,48 @@ const patch = safe(async b => {
    Tag là bảng riêng, feedback lưu danh sách ma_tag
 ========================================================= */
 
-const addTag = async e => {
-    if (e.key !== 'Enter') return;
-
-    e.preventDefault();
-
-    const v = e.target.value.trim();
-
-    if (!v || CUR.tags.includes(v)) return;
-
-    try {
-        let tag = S.tags.find(t =>
-            t.ten_tag.toLowerCase() === v.toLowerCase() &&
-            Number(t.ma_san_pham) === Number(CUR.productId)
-        );
-
-        if (!tag) {
-            tag = await api(CFG.EP.tags, {
-                method: 'POST',
-                body: {
-                    ten_tag: v,
-                    ma_san_pham: CUR.productId
-                }
-            });
-
-            S.tags.push(tag);
-        }
-
-        const ids = [...CUR.tagIds, tag.ma_tag];
-
-        await api(CFG.EP.fb + CUR.id + '/', {
-            method: 'PATCH',
-            body: {
-                tags: ids
-            }
-        });
-
-        toast('Đã thêm tag');
-        route();
-
-    } catch (x) {
-        toast(x.message, true);
+const addTag = safe(async () => {
+    if (!canAssignTags()) {
+        toast('Bạn không có quyền gắn Tag.', true);
+        return;
     }
-};
+
+    const select = document.querySelector('#tagSelect');
+    const tagId = Number(select?.value);
+
+    if (!tagId) {
+        toast('Vui lòng chọn Tag.', true);
+        return;
+    }
+
+    if (CUR.tagIds.some(id => Number(id) === tagId)) {
+        toast('Feedback đã có Tag này.', true);
+        return;
+    }
+
+    const ids = [...CUR.tagIds, tagId];
+
+    await api(CFG.EP.fb + CUR.id + '/', {
+        method: 'PATCH',
+        body: { tags: ids }
+    });
+
+    toast('Đã gắn Tag');
+    await detail(CUR.id);
+});
 
 
-const rmTag = safe(async t => {
-    const tag = S.tags.find(x => x.ten_tag === t);
+const rmTag = safe(async tagId => {
+    if (!canAssignTags()) {
+        toast('Bạn không có quyền gỡ Tag.', true);
+        return;
+    }
 
-    if (!tag) return;
+    const ids = CUR.tagIds.filter(id =>
+        Number(id) !== Number(tagId)
+    );
 
-    const ids = CUR.tagIds.filter(id => id !== tag.ma_tag);
+    if (ids.length === CUR.tagIds.length) return;
 
     await api(CFG.EP.fb + CUR.id + '/', {
         method: 'PATCH',
@@ -380,8 +400,8 @@ const rmTag = safe(async t => {
         }
     });
 
-    toast('Đã xóa tag khỏi feedback');
-    route();
+    toast('Đã gỡ Tag khỏi feedback');
+    await detail(CUR.id);
 });
 
 
@@ -462,8 +482,6 @@ async function edit(isEdit) {
                 </select>
             ` : ''}
 
-            <label>Tag (cách nhau bằng dấu phẩy)</label>
-            <input name="tags" value="${esc(x.tags.join(', '))}">
 
             ${isStaff() ? `
                 <label>Trạng thái</label>
@@ -510,36 +528,7 @@ const save = safe(async (e, isEdit) => {
         body.trang_thai = f.status;
     }
 
-    // Chuyển tên tag thành ma_tag trước khi gửi Backend
-    const tagNames = f.tags
-        .split(',')
-        .map(t => t.trim())
-        .filter(Boolean);
 
-    const tagIds = [];
-
-    for (const name of tagNames) {
-        let tag = S.tags.find(t =>
-            t.ten_tag.toLowerCase() === name.toLowerCase() &&
-            Number(t.ma_san_pham) === Number(productId)
-        );
-
-        if (!tag) {
-            tag = await api(CFG.EP.tags, {
-                method: 'POST',
-                body: {
-                    ten_tag: name,
-                    ma_san_pham: productId
-                }
-            });
-
-            S.tags.push(tag);
-        }
-
-        tagIds.push(tag.ma_tag);
-    }
-
-    body.tags = tagIds;
 
     await api(
         CFG.EP.fb + (isEdit ? CUR.id + '/' : ''),
