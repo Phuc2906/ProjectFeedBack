@@ -395,6 +395,120 @@ async function saveTag(event) {
 
 
 /* =========================================================
+   SỬA TAG
+========================================================= */
+
+function editTag(tagId) {
+    if (!canManageTags()) {
+        toast('Bạn không có quyền sửa Tag.', true);
+        return;
+    }
+
+    const tag = S.tags.find(t =>
+        Number(t.ma_tag) === Number(tagId)
+    );
+
+    if (!tag) {
+        toast('Không tìm thấy Tag.', true);
+        return;
+    }
+
+    modal(`
+        <h3>Sửa Tag</h3>
+
+        <form onsubmit="updateTag(event, ${tag.ma_tag})">
+            <label>Tên Tag</label>
+
+            <input
+                name="ten_tag"
+                value="${esc(tag.ten_tag)}"
+                maxlength="100"
+                required
+            >
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+                <button type="button" class="btn ghost" onclick="closeM()">
+                    Hủy
+                </button>
+
+                <button type="submit" class="btn">
+                    Lưu thay đổi
+                </button>
+            </div>
+        </form>
+    `);
+}
+
+async function updateTag(event, tagId) {
+    event.preventDefault();
+
+    if (!canManageTags()) return;
+
+    const tenTag = event.target.elements['ten_tag'].value.trim();
+
+    if (!tenTag) {
+        toast('Vui lòng nhập tên Tag.', true);
+        return;
+    }
+
+    try {
+        await api(CFG.EP.tags + tagId + '/', {
+            method: 'PATCH',
+            body: {
+                ten_tag: tenTag
+            }
+        });
+
+        closeM();
+        toast('Cập nhật Tag thành công!');
+
+        await loadTags();
+        renderTagList();
+
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+/* =========================================================
+   XÓA TAG
+========================================================= */
+
+async function deleteTag(tagId) {
+    if (!canManageTags()) {
+        toast('Bạn không có quyền xóa Tag.', true);
+        return;
+    }
+
+    const tag = S.tags.find(t =>
+        Number(t.ma_tag) === Number(tagId)
+    );
+
+    if (!tag) {
+        toast('Không tìm thấy Tag.', true);
+        return;
+    }
+
+    if (!confirm(`Bạn có chắc muốn xóa Tag "${tag.ten_tag}"?`)) {
+        return;
+    }
+
+    try {
+        await api(CFG.EP.tags + tagId + '/', {
+            method: 'DELETE'
+        });
+
+        toast('Đã xóa Tag!');
+
+        await loadTags();
+        renderTagList();
+
+    } catch (e) {
+        toast(e.message, true);
+    }
+}
+
+/* =========================================================
    QUẢN LÝ NGƯỜI DÙNG
    Backend hiện chưa có API /users/
 ========================================================= */
