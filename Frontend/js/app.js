@@ -9,13 +9,15 @@ const V = {
     roadmap,
     ai,
     users,
-    products
+    products,
+    tags
 };
 
 const NAV = [
     ['dashboard', 'Tổng quan'],
     ['inbox', 'Hộp thư'],
     ['products', 'Sản phẩm'],
+    ['tags', 'Quản lý Tag'],
     ['roadmap', 'Roadmap'],
     ['ai', 'Insight AI'],
     ['users', 'Người dùng']
@@ -41,7 +43,11 @@ async function route() {
 
     
 $('#nav').innerHTML = NAV
-    .filter(n => n[0] !== 'users' || canAdmin())
+    .filter(n => {
+    if (n[0] === 'users') return canAdmin();
+    if (n[0] === 'tags') return canManageTags();
+    return true;
+})
     .map(n => `
         <a href="#/${n[0]}"
             class="${(cur === n[0] || (cur === 'detail' && n[0] === 'inbox')) ? 'on' : ''}">
@@ -204,6 +210,186 @@ async function saveProduct(event) {
         toast(e.message, true);
         btn.disabled = false;
         btn.textContent = 'Thêm sản phẩm';
+    }
+}
+
+/* =========================================================
+   QUẢN LÝ TAG
+========================================================= */
+
+async function tags() {
+    if (!canManageTags()) {
+        toast('Bạn không có quyền quản lý Tag.', true);
+        location.hash = '#/dashboard';
+        return;
+    }
+
+    await loadProducts();
+    await loadTags();
+
+    $('#main').innerHTML = `
+        <div class="top">
+            <div>
+                <h1>Quản lý Tag</h1>
+                <p class="sub">
+                    Quản lý nhãn phân loại feedback theo sản phẩm
+                </p>
+            </div>
+
+            <button class="btn" onclick="addTagManager()">
+                + Thêm Tag
+            </button>
+        </div>
+
+        <div class="card">
+            <label>Chọn sản phẩm</label>
+
+            <select id="tagProduct" onchange="renderTagList()">
+                ${S.products.map(p => `
+                    <option value="${p.ma_san_pham}">
+                        ${esc(p.ten_san_pham)}
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+
+        <div class="card" id="tagList"></div>
+    `;
+
+    renderTagList();
+}
+
+function renderTagList() {
+    const productId = Number($('#tagProduct')?.value);
+
+    const list = S.tags.filter(t =>
+        Number(t.ma_san_pham) === productId
+    );
+
+    $('#tagList').innerHTML = `
+        <h3>Danh sách Tag</h3>
+
+        ${list.length ? list.map(t => `
+            <div class="row">
+                <div class="t">
+                    <b>${esc(t.ten_tag)}</b>
+                </div>
+
+                <button class="btn ghost"
+                    onclick="editTag(${t.ma_tag})">
+                    Sửa
+                </button>
+
+                <button class="btn bad"
+                    onclick="deleteTag(${t.ma_tag})">
+                    Xóa
+                </button>
+            </div>
+        `).join('') : `
+            <p class="empty">
+                Sản phẩm này chưa có Tag nào.
+            </p>
+        `}
+    `;
+}
+
+/* =========================================================
+   THÊM TAG
+========================================================= */
+
+function addTagManager() {
+    if (!canManageTags()) {
+        toast('Bạn không có quyền thêm Tag.', true);
+        return;
+    }
+
+    const currentProduct = $('#tagProduct')?.value;
+
+    modal(`
+        <h3>Thêm Tag mới</h3>
+
+        <form onsubmit="saveTag(event)">
+            <label>Sản phẩm</label>
+
+            <select name="ma_san_pham" required>
+                ${S.products.map(p => `
+                    <option
+                        value="${p.ma_san_pham}"
+                        ${String(p.ma_san_pham) === String(currentProduct) ? 'selected' : ''}
+                    >
+                        ${esc(p.ten_san_pham)}
+                    </option>
+                `).join('')}
+            </select>
+
+            <label>Tên Tag</label>
+
+            <input
+                name="ten_tag"
+                placeholder="Ví dụ: Bug, UI/UX..."
+                maxlength="100"
+                required
+            >
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+                <button type="button" class="btn ghost" onclick="closeM()">
+                    Hủy
+                </button>
+
+                <button type="submit" class="btn">
+                    Thêm Tag
+                </button>
+            </div>
+        </form>
+    `);
+}
+
+/* =========================================================
+   LƯU TAG
+========================================================= */
+
+async function saveTag(event) {
+    event.preventDefault();
+
+    if (!canManageTags()) {
+        toast('Bạn không có quyền thêm Tag.', true);
+        return;
+    }
+
+    const form = event.target;
+    const btn = form.querySelector('button[type="submit"]');
+
+    const productId = Number(form.elements['ma_san_pham'].value);
+    const tenTag = form.elements['ten_tag'].value.trim();
+
+    if (!productId || !tenTag) {
+        toast('Vui lòng nhập đầy đủ thông tin.', true);
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Đang lưu...';
+
+    try {
+        await api(CFG.EP.tags, {
+            method: 'POST',
+            body: {
+                ma_san_pham: productId,
+                ten_tag: tenTag
+            }
+        });
+
+        closeM();
+        toast('Thêm Tag thành công!');
+
+        await loadTags();
+        renderTagList();
+
+    } catch (e) {
+        toast(e.message, true);
+
+        btn.disabled = false;
+        btn.textContent = 'Thêm Tag';
     }
 }
 

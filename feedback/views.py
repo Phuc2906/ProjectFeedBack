@@ -85,16 +85,6 @@ class TagViewSet(viewsets.ModelViewSet):
     ]
 
     def get_queryset(self):
-        user = self.request.user
-        role = user.tai_khoan.vai_tro
-
-        # Product chỉ quản lý Tag thuộc sản phẩm của mình
-        if role == 'Product':
-            return Tag.objects.filter(
-                ma_san_pham__ma_tai_khoan=user.tai_khoan
-            )
-
-        # CS và Dev chỉ được xem Tag toàn hệ thống
         return Tag.objects.all()
 
 
@@ -112,14 +102,6 @@ class NhomAIViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsProductOrReadOnly]
 
     def get_queryset(self):
-        user = self.request.user
-        role = user.tai_khoan.vai_tro
-
-        if role == 'Product':
-            return NhomAI.objects.filter(
-                ma_san_pham__ma_tai_khoan=user.tai_khoan
-            )
-
         return NhomAI.objects.all()
 
 
@@ -130,14 +112,6 @@ class ChiTietNhomAIViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsProductOrReadOnly]
 
     def get_queryset(self):
-        user = self.request.user
-        role = user.tai_khoan.vai_tro
-
-        if role == 'Product':
-            return ChiTietNhomAI.objects.filter(
-                ma_nhom__ma_san_pham__ma_tai_khoan=user.tai_khoan
-            )
-
         return ChiTietNhomAI.objects.all()
 
 
@@ -155,16 +129,6 @@ class RoadmapViewSet(viewsets.ModelViewSet):
             return Roadmap.objects.filter(
                 cong_khai=True
             )
-
-        role = user.tai_khoan.vai_tro
-
-        # Product chỉ xem Roadmap thuộc sản phẩm của mình
-        if role == 'Product':
-            return Roadmap.objects.filter(
-                ma_san_pham__ma_tai_khoan=user.tai_khoan
-            )
-
-        # CS và Dev xem toàn bộ Roadmap
         return Roadmap.objects.all()
 
 

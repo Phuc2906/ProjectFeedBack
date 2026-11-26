@@ -12,13 +12,12 @@ from django.contrib.auth.password_validation import (
 
 
 # Kiểm tra sản phẩm có thuộc Product đang đăng nhập không
-def is_product_owner(request, san_pham):
+def is_product_owner(request, san_pham=None):
     if not request or not request.user.is_authenticated:
         return False
 
     try:
-        tai_khoan = request.user.tai_khoan
-        return san_pham.ma_tai_khoan_id == tai_khoan.pk
+        return request.user.tai_khoan.vai_tro == 'Product'
     except TaiKhoan.DoesNotExist:
         return False
 
@@ -143,13 +142,6 @@ class SanPhamSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
     def validate_ma_tai_khoan(self, value):
-        request = self.context.get('request')
-
-        if request and request.user.tai_khoan != value:
-            raise serializers.ValidationError(
-                "Bạn chỉ được tạo sản phẩm cho tài khoản của mình."
-            )
-
         return value
 
 

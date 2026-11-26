@@ -62,8 +62,10 @@ class IsDevRoadmap(BasePermission):
             if request.method in SAFE_METHODS:
                 return True
 
-            if request.method == 'PATCH':
-                return set(request.data.keys()) <= {'trang_thai'}
+            return (
+                request.method == 'PATCH'
+                and set(request.data.keys()) == {'trang_thai'}
+            )
 
         return request.method in SAFE_METHODS
 
