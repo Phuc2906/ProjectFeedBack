@@ -6,6 +6,7 @@ const V = {
     dashboard,
     inbox,
     detail,
+    chat,
     roadmap,
     ai,
     users,
@@ -16,6 +17,7 @@ const V = {
 const NAV = [
     ['dashboard', 'Tổng quan'],
     ['inbox', 'Hộp thư'],
+    ['chat', 'Hộp thư Chat'],
     ['products', 'Sản phẩm'],
     ['tags', 'Quản lý Tag'],
     ['roadmap', 'Roadmap'],
@@ -35,6 +37,11 @@ async function route() {
     const [p, id] = location.hash.slice(2).split('/');
     const cur = V[p] ? p : 'dashboard';
 
+    if (cur === 'chat' && getRole() !== ROLES.CS) {
+    location.hash = '#/dashboard';
+    return;
+}
+
     $('#meName').textContent =
         S.user?.ho_ten || S.user?.username || 'Tài khoản';
 
@@ -46,6 +53,7 @@ $('#nav').innerHTML = NAV
     .filter(n => {
     if (n[0] === 'users') return canAdmin();
     if (n[0] === 'tags') return canManageTags();
+    if (n[0] === 'chat') return getRole() === ROLES.CS;
     return true;
 })
     .map(n => `

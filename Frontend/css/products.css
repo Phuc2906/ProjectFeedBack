@@ -333,3 +333,36 @@ footer {
         height: min(480px, 70vh);
     }
 }
+
+/* Khung chat */
+.chat-box {
+    display: flex;
+    flex-direction: column;
+    height: 600px;
+    max-height: 85vh;
+    overflow: hidden;
+}
+
+/* Khu vực trò chuyện */
+#chatConversation {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+/* Danh sách tin nhắn */
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 16px;
+    scroll-behavior: smooth;
+}
+
+/* Thanh nhập tin nhắn luôn nằm dưới */
+.chat-message-form {
+    flex-shrink: 0;
+}
