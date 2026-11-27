@@ -4,7 +4,9 @@ from .views import (
     SanPhamViewSet, TagViewSet,
     BinhChonViewSet, NhomAIViewSet,
     ChiTietNhomAIViewSet, RoadmapViewSet,
-    TaiKhoanView, PublicSanPhamListView
+    TaiKhoanView, PublicSanPhamListView,
+    ChatCustomerStartView, ChatCustomerMessageView,
+    ChatCSListView, ChatCSMessageView
 )
 from django.urls import path, include
 
@@ -27,4 +29,28 @@ urlpatterns = [
     PublicSanPhamListView.as_view(),
     name='public-san-pham'
 ),
+
+    # CHAT KHÁCH HÀNG
+    path(
+        'chat/start/',
+        ChatCustomerStartView.as_view(),
+        name='chat-start'
+    ),
+    path(
+        'chat/customer/<uuid:token>/',
+        ChatCustomerMessageView.as_view(),
+        name='chat-customer'
+    ),
+
+    # CHAT CS
+    path(
+        'chat/cs/',
+        ChatCSListView.as_view(),
+        name='chat-cs-list'
+    ),
+    path(
+        'chat/cs/<int:pk>/',
+        ChatCSMessageView.as_view(),
+        name='chat-cs-message'
+    ),
 ]

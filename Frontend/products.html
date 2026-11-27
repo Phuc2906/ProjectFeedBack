@@ -55,6 +55,97 @@
 
     </main>
 
+    <!-- CHAT WIDGET -->
+<div id="chatWidget">
+
+    <button id="chatToggle" type="button">
+        Chat hỗ trợ
+    </button>
+
+    <div id="chatBox" class="chat-box hidden">
+
+        <div class="chat-header">
+            <div>
+                <h3>Hỗ trợ khách hàng</h3>
+                <span>ProjectFeedback</span>
+            </div>
+
+            <button id="chatClose" type="button">×</button>
+        </div>
+
+        <!-- FORM BẮT ĐẦU CHAT -->
+        <div id="chatStart">
+
+            <p class="chat-welcome">
+                Xin chào! Hãy để lại thông tin để chúng tôi hỗ trợ bạn.
+            </p>
+
+            <form id="chatStartForm">
+
+                <label for="chatProduct">Sản phẩm</label>
+                <select id="chatProduct" required>
+                    <option value="">Đang tải sản phẩm...</option>
+                </select>
+
+                <label for="chatName">Họ tên</label>
+                <input
+                    type="text"
+                    id="chatName"
+                    maxlength="100"
+                    required
+                    placeholder="Nhập họ tên"
+                >
+
+                <label for="chatEmail">Email</label>
+                <input
+                    type="email"
+                    id="chatEmail"
+                    required
+                    placeholder="Nhập email"
+                >
+
+                <label for="chatFirstMessage">Tin nhắn</label>
+                <textarea
+                    id="chatFirstMessage"
+                    required
+                    placeholder="Bạn cần hỗ trợ vấn đề gì?"
+                ></textarea>
+
+                <button type="submit" id="chatStartButton">
+                    Bắt đầu trò chuyện
+                </button>
+
+                <p id="chatStartError" class="chat-error"></p>
+
+            </form>
+        </div>
+
+        <!-- KHUNG NHẮN TIN -->
+        <div id="chatConversation" class="hidden">
+
+            <div id="chatMessages" class="chat-messages"></div>
+
+            <form id="chatMessageForm" class="chat-message-form">
+
+                <input
+                    type="text"
+                    id="chatMessageInput"
+                    placeholder="Nhập tin nhắn..."
+                    required
+                >
+
+                <button type="submit">Gửi</button>
+
+            </form>
+
+            <p id="chatMessageError" class="chat-error"></p>
+
+        </div>
+
+    </div>
+
+</div>
+
     <footer>
         ProjectFeedback - Lắng nghe để cải thiện
     </footer>

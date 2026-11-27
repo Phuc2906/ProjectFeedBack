@@ -2,7 +2,8 @@
 from rest_framework import serializers
 from .models import (
     PhanHoi, SanPham, BinhChon,
-    NhomAI, ChiTietNhomAI, Roadmap, TaiKhoan, Tag
+    NhomAI, ChiTietNhomAI, Roadmap, TaiKhoan, Tag,
+    CuocTroChuyen, TinNhan
 )
 
 from django.contrib.auth.models import User
@@ -329,3 +330,58 @@ class TaiKhoanSerializer(serializers.ModelSerializer):
         instance.user.save()
 
         return instance
+
+# 9. CUỘC TRÒ CHUYỆN
+class CuocTroChuyenSerializer(serializers.ModelSerializer):
+
+    ten_san_pham = serializers.CharField(
+        source='ma_san_pham.ten_san_pham',
+        read_only=True
+    )
+
+    class Meta:
+        model = CuocTroChuyen
+        fields = [
+            'ma_cuoc_tro_chuyen',
+            'ma_san_pham',
+            'ten_san_pham',
+            'ten_khach_hang',
+            'email',
+            'trang_thai',
+            'ngay_tao',
+            'ngay_cap_nhat'
+        ]
+
+        read_only_fields = [
+            'ma_cuoc_tro_chuyen',
+            'trang_thai',
+            'ngay_tao',
+            'ngay_cap_nhat'
+        ]
+
+
+# 10. TIN NHẮN
+class TinNhanSerializer(serializers.ModelSerializer):
+
+    ten_nguoi_gui = serializers.CharField(
+        source='ma_tai_khoan.ho_ten',
+        read_only=True,
+        allow_null=True
+    )
+
+    class Meta:
+        model = TinNhan
+        fields = [
+            'ma_tin_nhan',
+            'nguoi_gui',
+            'ten_nguoi_gui',
+            'noi_dung',
+            'ngay_gui'
+        ]
+
+        read_only_fields = [
+            'ma_tin_nhan',
+            'nguoi_gui',
+            'ten_nguoi_gui',
+            'ngay_gui'
+        ]

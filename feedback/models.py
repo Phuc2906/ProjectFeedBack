@@ -1,6 +1,7 @@
 
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
 
 
 # 1. TAI KHOAN
@@ -227,3 +228,86 @@ class Roadmap(models.Model):
 
     class Meta:
         db_table = 'Roadmap'
+
+
+# 8. CUỘC TRÒ CHUYỆN
+class CuocTroChuyen(models.Model):
+
+    TRANG_THAI_CHOICES = [
+        ('Open', 'Open'),
+        ('Closed', 'Closed'),
+    ]
+
+    ma_cuoc_tro_chuyen = models.AutoField(primary_key=True)
+
+    ma_san_pham = models.ForeignKey(
+        SanPham,
+        on_delete=models.CASCADE,
+        related_name='cuoc_tro_chuyen'
+    )
+
+    ten_khach_hang = models.CharField(max_length=100)
+    email = models.EmailField()
+
+    token_truy_cap = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False
+    )
+
+    trang_thai = models.CharField(
+        max_length=20,
+        choices=TRANG_THAI_CHOICES,
+        default='Open'
+    )
+
+    ngay_tao = models.DateTimeField(auto_now_add=True)
+    ngay_cap_nhat = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'Cuộc trò chuyện #{self.ma_cuoc_tro_chuyen}'
+
+    class Meta:
+        db_table = 'CuocTroChuyen'
+
+
+# 9. TIN NHẮN
+class TinNhan(models.Model):
+
+    NGUOI_GUI_CHOICES = [
+        ('Customer', 'Customer'),
+        ('CS', 'CS'),
+    ]
+
+    ma_tin_nhan = models.AutoField(primary_key=True)
+
+    ma_cuoc_tro_chuyen = models.ForeignKey(
+        CuocTroChuyen,
+        on_delete=models.CASCADE,
+        related_name='tin_nhan'
+    )
+
+    nguoi_gui = models.CharField(
+        max_length=20,
+        choices=NGUOI_GUI_CHOICES
+    )
+
+    ma_tai_khoan = models.ForeignKey(
+        TaiKhoan,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tin_nhan'
+    )
+
+    noi_dung = models.TextField()
+
+    ngay_gui = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Tin nhắn #{self.ma_tin_nhan}'
+
+    class Meta:
+        db_table = 'TinNhan'
+        ordering = ['ngay_gui']
+

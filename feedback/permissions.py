@@ -84,3 +84,10 @@ class IsProductTagManagement(BasePermission):
         # Chỉ Product được tạo, sửa, xóa Tag
         return role == 'Product'
 
+# 6. CHAT - CHỈ CS ĐƯỢC QUẢN LÝ
+class IsCSChat(BasePermission):
+    """Chỉ CS được truy cập chức năng quản lý Chat."""
+
+    def has_permission(self, request, view):
+        return get_user_role(request.user) == 'CS'
+
