@@ -24,7 +24,8 @@ from .serializers import (
 from .permissions import (
     IsProductOrReadOnly, IsCSFeedback,
     IsReadOnlyForAll, IsDevRoadmap,
-    IsProductTagManagement, IsCSChat
+    IsProductTagManagement, IsCSChat, 
+    IsCSOrProductVote
 )
 
 from .services import send_feedback_status_email
@@ -96,7 +97,11 @@ class TagViewSet(viewsets.ModelViewSet):
 class BinhChonViewSet(viewsets.ModelViewSet):
     queryset = BinhChon.objects.all()
     serializer_class = BinhChonSerializer
-    permission_classes = [IsAuthenticated, IsReadOnlyForAll]
+    permission_classes = [IsAuthenticated, IsCSOrProductVote]
+
+    def perform_create(self, serializer):
+        tai_khoan = self.request.user.tai_khoan
+        serializer.save(ma_tai_khoan=tai_khoan)
 
 
 # 4. QUẢN LÝ NHÓM AI

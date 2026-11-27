@@ -91,3 +91,20 @@ class IsCSChat(BasePermission):
     def has_permission(self, request, view):
         return get_user_role(request.user) == 'CS'
 
+# 7. QUYỀN BÌNH CHỌN
+class IsCSOrProductVote(BasePermission):
+    """CS và Product được Vote, Dev chỉ được xem."""
+
+    def has_permission(self, request, view):
+        role = get_user_role(request.user)
+
+        # Tất cả vai trò nội bộ được xem Vote
+        if request.method in SAFE_METHODS:
+            return role in ['CS', 'Product', 'Dev']
+
+        # Chỉ CS và Product được tạo hoặc xóa Vote
+        return (
+    role in ['CS', 'Product']
+    and request.method in ['POST', 'DELETE']
+)
+

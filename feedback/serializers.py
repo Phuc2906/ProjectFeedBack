@@ -151,6 +151,7 @@ class BinhChonSerializer(serializers.ModelSerializer):
     class Meta:
         model = BinhChon
         fields = '__all__'
+        read_only_fields = ['ma_tai_khoan']
 
 
 # 4. NHÓM AI
