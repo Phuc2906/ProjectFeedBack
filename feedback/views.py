@@ -221,12 +221,12 @@ class ChatCustomerStartView(APIView):
         }, status=status.HTTP_201_CREATED)
 
 
+
 # 10. KHÁCH HÀNG XEM VÀ GỬI TIN NHẮN
 class ChatCustomerMessageView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request, token):
-
         cuoc_tro_chuyen = get_object_or_404(
             CuocTroChuyen,
             token_truy_cap=token
@@ -234,12 +234,12 @@ class ChatCustomerMessageView(APIView):
 
         tin_nhan = cuoc_tro_chuyen.tin_nhan.all()
 
-        return Response(
-            TinNhanSerializer(tin_nhan, many=True).data
-        )
+        return Response({
+            'trang_thai': cuoc_tro_chuyen.trang_thai,
+            'tin_nhan': TinNhanSerializer(tin_nhan, many=True).data
+        })
 
     def post(self, request, token):
-
         cuoc_tro_chuyen = get_object_or_404(
             CuocTroChuyen,
             token_truy_cap=token
@@ -271,7 +271,6 @@ class ChatCustomerMessageView(APIView):
             status=status.HTTP_201_CREATED
         )
 
-
 # 11. CS XEM DANH SÁCH CUỘC TRÒ CHUYỆN
 class ChatCSListView(APIView):
     permission_classes = [IsAuthenticated, IsCSChat]
@@ -295,7 +294,6 @@ class ChatCSMessageView(APIView):
     permission_classes = [IsAuthenticated, IsCSChat]
 
     def get(self, request, pk):
-
         cuoc_tro_chuyen = get_object_or_404(
             CuocTroChuyen,
             ma_cuoc_tro_chuyen=pk
@@ -303,15 +301,12 @@ class ChatCSMessageView(APIView):
 
         tin_nhan = cuoc_tro_chuyen.tin_nhan.all()
 
-        return Response(
-            {
-    'trang_thai': cuoc_tro_chuyen.trang_thai,
-    'tin_nhan': TinNhanSerializer(tin_nhan, many=True).data
-}
-        )
+        return Response({
+            'trang_thai': cuoc_tro_chuyen.trang_thai,
+            'tin_nhan': TinNhanSerializer(tin_nhan, many=True).data
+        })
 
     def post(self, request, pk):
-
         cuoc_tro_chuyen = get_object_or_404(
             CuocTroChuyen,
             ma_cuoc_tro_chuyen=pk
