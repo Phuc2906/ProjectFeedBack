@@ -187,15 +187,37 @@ async function inbox() {
    Backend sử dụng API /binhchon/
 ========================================================= */
 
+ 
 const vote = safe(async (e, id) => {
     e.stopPropagation();
 
-    await api(CFG.EP.vote, {
-        method: 'POST',
-        body: {
-            ma_phan_hoi: id
-        }
-    });
+    const role = getRole();
+
+    if (!['CS', 'Product'].includes(role)) {
+        toast('Bạn không có quyền Vote.', true);
+        return;
+    }
+
+    // Kiểm tra tài khoản đã Vote feedback này chưa
+    const myVote = S.votes.find(v =>
+        Number(v.ma_phan_hoi) === Number(id) &&
+        Number(v.ma_tai_khoan) === Number(S.user.ma_tai_khoan)
+    );
+
+    if (myVote) {
+        // Đã Vote thì xóa Vote
+        await api(CFG.EP.vote + myVote.ma_binh_chon + '/', {
+            method: 'DELETE'
+        });
+    } else {
+        // Chưa Vote thì tạo Vote
+        await api(CFG.EP.vote, {
+            method: 'POST',
+            body: {
+                ma_phan_hoi: id
+            }
+        });
+    }
 
     await loadVotes();
     await loadFb();
@@ -210,8 +232,9 @@ const vote = safe(async (e, id) => {
         route();
     }
 
-    toast('Đã ghi nhận vote');
+    toast(myVote ? 'Đã gỡ Vote.' : 'Đã ghi nhận Vote.');
 });
+
 
 
 /* =========================================================
