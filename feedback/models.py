@@ -78,7 +78,7 @@ class PhanHoi(models.Model):
 
     ma_san_pham = models.ForeignKey(
         SanPham,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='phan_hoi'
     )
 
@@ -115,7 +115,7 @@ class Tag(models.Model):
 
     ma_san_pham = models.ForeignKey(
         SanPham,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='tags'
     )
 
@@ -166,7 +166,7 @@ class NhomAI(models.Model):
     ma_nhom = models.AutoField(primary_key=True)
     ma_san_pham = models.ForeignKey(
         SanPham,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='nhom_ai'
     )
     ten_nhom = models.CharField(max_length=200)
@@ -210,7 +210,7 @@ class Roadmap(models.Model):
     ma_roadmap = models.AutoField(primary_key=True)
     ma_san_pham = models.ForeignKey(
         SanPham,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='roadmap'
     )
     ma_nhom = models.ForeignKey(
@@ -242,7 +242,7 @@ class CuocTroChuyen(models.Model):
 
     ma_san_pham = models.ForeignKey(
         SanPham,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         related_name='cuoc_tro_chuyen'
     )
 

@@ -119,6 +119,20 @@ async function products() {
                     <small class="sub">
                         Mã sản phẩm: ${esc(p.ma_san_pham)}
                     </small>
+
+                    ${isProduct ? `
+                        <div style="display:flex;gap:10px;margin-top:16px">
+                            <button class="btn ghost"
+                                onclick="editProduct(${p.ma_san_pham})">
+                                Sửa
+                            </button>
+
+                            <button class="btn bad"
+                                onclick="deleteProduct(${p.ma_san_pham})">
+                                Xóa
+                            </button>
+                        </div>
+                    ` : ''}
                 </div>
             `).join('') : `
                 <div class="card empty">
@@ -218,6 +232,146 @@ async function saveProduct(event) {
         toast(e.message, true);
         btn.disabled = false;
         btn.textContent = 'Thêm sản phẩm';
+    }
+}
+
+/* =========================================================
+   SỬA SẢN PHẨM
+========================================================= */
+
+function editProduct(productId) {
+    if (getRole() !== 'Product') {
+        toast('Bạn không có quyền sửa sản phẩm.', true);
+        return;
+    }
+
+    const product = S.products.find(p =>
+        Number(p.ma_san_pham) === Number(productId)
+    );
+
+    if (!product) {
+        toast('Không tìm thấy sản phẩm.', true);
+        return;
+    }
+
+    modal(`
+        <h3>Sửa sản phẩm</h3>
+
+        <form onsubmit="updateProduct(event, ${product.ma_san_pham})">
+            <label>Tên sản phẩm</label>
+
+            <input
+                name="ten_san_pham"
+                value="${esc(product.ten_san_pham)}"
+                maxlength="200"
+                required
+            >
+
+            <label>Mô tả sản phẩm</label>
+
+            <textarea
+                name="mo_ta"
+                rows="4"
+            >${esc(product.mo_ta || '')}</textarea>
+
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px">
+                <button type="button" class="btn ghost" onclick="closeM()">
+                    Hủy
+                </button>
+
+                <button type="submit" class="btn">
+                    Lưu thay đổi
+                </button>
+            </div>
+        </form>
+    `);
+}
+
+/* =========================================================
+   CẬP NHẬT SẢN PHẨM
+========================================================= */
+
+async function updateProduct(event, productId) {
+    event.preventDefault();
+
+    if (getRole() !== 'Product') {
+        toast('Bạn không có quyền sửa sản phẩm.', true);
+        return;
+    }
+
+    const form = event.target;
+    const btn = form.querySelector('button[type="submit"]');
+
+    const ten = form.elements['ten_san_pham'].value.trim();
+    const moTa = form.elements['mo_ta'].value.trim();
+
+    if (!ten) {
+        toast('Vui lòng nhập tên sản phẩm.', true);
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Đang lưu...';
+
+    try {
+        await api(CFG.EP.products + productId + '/', {
+            method: 'PATCH',
+            body: {
+                ten_san_pham: ten,
+                mo_ta: moTa
+            }
+        });
+
+        closeM();
+        toast('Cập nhật sản phẩm thành công!');
+
+        await products();
+
+    } catch (e) {
+        toast(e.message, true);
+
+        btn.disabled = false;
+        btn.textContent = 'Lưu thay đổi';
+    }
+}
+
+/* =========================================================
+   XÓA SẢN PHẨM
+========================================================= */
+
+async function deleteProduct(productId) {
+    if (getRole() !== 'Product') {
+        toast('Bạn không có quyền xóa sản phẩm.', true);
+        return;
+    }
+
+    const product = S.products.find(p =>
+        Number(p.ma_san_pham) === Number(productId)
+    );
+
+    if (!product) {
+        toast('Không tìm thấy sản phẩm.', true);
+        return;
+    }
+
+    if (!confirm(
+        `Bạn có chắc muốn xóa sản phẩm "${product.ten_san_pham}"?`
+        + '\n\nLưu ý: Chỉ xóa được sản phẩm chưa có dữ liệu liên quan.'
+    )) {
+        return;
+    }
+
+    try {
+        await api(CFG.EP.products + productId + '/', {
+            method: 'DELETE'
+        });
+
+        toast('Đã xóa sản phẩm!');
+
+        await products();
+
+    } catch (e) {
+        toast(e.message, true);
     }
 }
 

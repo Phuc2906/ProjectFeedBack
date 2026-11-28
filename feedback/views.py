@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.generics import RetrieveUpdateAPIView
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.db.models.deletion import ProtectedError
 
 from .models import (
     PhanHoi, SanPham, BinhChon,
@@ -79,6 +80,25 @@ class SanPhamViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return SanPham.objects.all().order_by('ten_san_pham')
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+
+        try:
+            self.perform_destroy(instance)
+
+        except ProtectedError:
+            return Response(
+                {
+                    'detail': (
+                        'Không thể xóa sản phẩm này vì đang có dữ liệu '
+                        'liên quan như Feedback, Tag, Roadmap hoặc cuộc trò chuyện.'
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
 
 
