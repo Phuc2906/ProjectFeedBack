@@ -23,41 +23,35 @@ router.register(r'tag', TagViewSet, basename='tag')
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
-    path('', include(router.urls)),
-    path('taikhoan/me/', TaiKhoanView.as_view(), name='tai-khoan-me'),
-    path(
-    'public/sanpham/',
-    PublicSanPhamListView.as_view(),
-    name='public-san-pham'
-),
 
-    # CHAT KHÁCH HÀNG
+    # PRODUCT ĐƯA NHÓM AI VÀO ROADMAP
     path(
-        'chat/start/',
-        ChatCustomerStartView.as_view(),
-        name='chat-start'
+        'nhomai/dua-vao-roadmap/',
+        PromoteAIGroupView.as_view(),
+        name='promote-ai-group'
     ),
+
+    # ROUTER
+    path('', include(router.urls)),
+
+    path('taikhoan/me/', TaiKhoanView.as_view(), name='tai-khoan-me'),
+
+    path(
+        'public/sanpham/',
+        PublicSanPhamListView.as_view(),
+        name='public-san-pham'
+    ),
+
+    path('chat/start/', ChatCustomerStartView.as_view(), name='chat-start'),
     path(
         'chat/customer/<uuid:token>/',
         ChatCustomerMessageView.as_view(),
         name='chat-customer'
     ),
-
-    # CHAT CS
-    path(
-        'chat/cs/',
-        ChatCSListView.as_view(),
-        name='chat-cs-list'
-    ),
+    path('chat/cs/', ChatCSListView.as_view(), name='chat-cs-list'),
     path(
         'chat/cs/<int:pk>/',
         ChatCSMessageView.as_view(),
         name='chat-cs-message'
     ),
-
-    path(
-    'nhomai/dua-vao-roadmap/',
-    PromoteAIGroupView.as_view(),
-    name='promote-ai-group'
-),
 ]
