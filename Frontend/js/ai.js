@@ -22,6 +22,9 @@ function localAI() {
 
     for (let i = 0; i < f.length; i++) {
         for (let j = i + 1; j < f.length; j++) {
+
+            if (f[i].productId !== f[j].productId) continue;
+            
             const sh = [...T[i]].filter(w => T[j].has(w)).length;
             const m = Math.min(T[i].size, T[j].size) || 1;
 
@@ -60,6 +63,32 @@ function localAI() {
     });
 }
 
+async function loadPromotedFeedbackIds() {
+    try {
+        const [roadmaps, details] = await Promise.all([
+            api(CFG.EP.roadmap),
+            api(CFG.EP.groupDetails)
+        ]);
+
+        // Lấy ID các nhóm AI đã có Roadmap
+        const promotedGroupIds = new Set(
+            arr(roadmaps).map(r => Number(r.ma_nhom))
+        );
+
+        // Lấy ID Feedback thuộc các nhóm đó
+        return new Set(
+            arr(details)
+                .filter(d =>
+                    promotedGroupIds.has(Number(d.ma_nhom))
+                )
+                .map(d => Number(d.ma_phan_hoi))
+        );
+
+    } catch (e) {
+        console.error('Không tải được dữ liệu Roadmap:', e);
+        throw e;
+    }
+}
 
 async function ai() {
     await loadFb();
@@ -89,7 +118,27 @@ async function ai() {
 
         // Hiện tại chưa có API AI trong Backend.
         // Dùng localAI để giữ chức năng phân tích trên giao diện.
-        const cl = localAI();
+        let cl;
+
+try {
+    cl = localAI();
+
+    const promotedFeedbackIds = await loadPromotedFeedbackIds();
+
+    cl.forEach(c => {
+        c.promotedCount = c.ids.filter(id =>
+            promotedFeedbackIds.has(Number(id))
+        ).length;
+
+        c.promoted = c.promotedCount > 0;
+    });
+
+} catch (e) {
+    toast('Không tải được trạng thái Roadmap: ' + e.message, true);
+    b.disabled = false;
+    b.textContent = 'Phân tích lại';
+    return;
+}
 
         cl.forEach(c => {
             const m = c.ids
@@ -155,10 +204,23 @@ async function ai() {
                                 </a>
                             `).join('')}
 
-                            <button class="btn ghost" style="margin-top:12px"
-                                onclick="draft(${i})">
-                                Tạo nháp phản hồi khách hàng
-                            </button>
+                            ${getRole() === 'Product' ? `
+    <button class="btn" style="margin-top:12px"
+        id="promote-${i}"
+        onclick="promoteAIGroup(${i})"
+        ${c.promoted ? 'disabled' : ''}>
+        ${c.promoted
+            ? (c.promotedCount === c.ids.length
+                ? 'Đã đưa vào Roadmap'
+                : 'Có Feedback đã vào Roadmap')
+            : 'Đưa vào Roadmap'}
+    </button>
+` : ''}
+
+<button class="btn ghost" style="margin-top:12px"
+    onclick="draft(${i})">
+    Tạo nháp phản hồi khách hàng
+</button>
                         </div>
                     `;
                 }).join('') || '<p class="empty">Chưa có feedback để phân tích.</p>'}
@@ -168,6 +230,76 @@ async function ai() {
         b.disabled = false;
         b.textContent = 'Phân tích lại';
     };
+}
+
+
+/* =========================================================
+   ĐƯA NHÓM AI VÀO ROADMAP
+========================================================= */
+
+async function promoteAIGroup(i) {
+    const c = window.CL?.[i];
+
+    if (!c || !c.items?.length) {
+        toast('Không tìm thấy nhóm feedback.', true);
+        return;
+    }
+
+    if (getRole() !== 'Product') {
+        toast('Chỉ Product mới được đưa vào Roadmap.', true);
+        return;
+    }
+
+    if (c.promoted) {
+        toast('Nhóm này đã được đưa vào Roadmap rồi.', true);
+        return;
+    }
+
+    const ok = confirm(
+        `Đưa nhóm "${c.title}" gồm ${c.items.length} feedback vào Roadmap?`
+    );
+
+    if (!ok) return;
+
+    const b = document.getElementById(`promote-${i}`);
+    if (b) {
+        b.disabled = true;
+        b.textContent = 'Đang xử lý...';
+    }
+
+    try {
+        await api(CFG.EP.promoteAI, {
+            method: 'POST',
+            body: {
+                ma_san_pham: c.items[0].productId,
+                ma_phan_hoi: c.ids,
+                ten_nhom: c.title,
+                mo_ta: c.summary,
+                ten_cong_viec: `Cải thiện: ${c.title}`,
+                do_uu_tien: c.priority === 'high' ? 3
+                    : c.priority === 'medium' ? 2 : 1,
+                cong_khai: false
+            }
+        });
+
+        c.promoted = true;
+        c.promotedCount = c.ids.length;
+
+        if (b) {
+            b.textContent = 'Đã đưa vào Roadmap';
+            b.disabled = true;
+        }
+
+        toast('Đã đưa nhóm feedback vào Roadmap!');
+
+    } catch (e) {
+        if (b) {
+            b.disabled = false;
+            b.textContent = 'Đưa vào Roadmap';
+        }
+
+        toast(e.message, true);
+    }
 }
 
 

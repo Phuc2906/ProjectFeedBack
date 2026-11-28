@@ -365,3 +365,139 @@ class ChatCSMessageView(APIView):
             TinNhanSerializer(tin_nhan).data,
             status=status.HTTP_201_CREATED
         )
+
+
+# 7. PRODUCT ĐƯA NHÓM FEEDBACK VÀO ROADMAP
+
+# PRODUCT ĐƯA NHÓM FEEDBACK VÀO ROADMAP
+class PromoteAIGroupView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # 1. Chỉ Product được thực hiện
+        try:
+            role = request.user.tai_khoan.vai_tro
+        except (AttributeError, TaiKhoan.DoesNotExist):
+            role = None
+
+        if role != 'Product':
+            return Response(
+                {'detail': 'Chỉ Product được đưa nhóm vào Roadmap.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # 2. Nhận dữ liệu từ Frontend
+        ma_san_pham = request.data.get('ma_san_pham')
+        ma_phan_hoi = request.data.get('ma_phan_hoi', [])
+        ten_nhom = request.data.get('ten_nhom', '').strip()
+        mo_ta = request.data.get('mo_ta', '').strip()
+        ten_cong_viec = request.data.get('ten_cong_viec', '').strip()
+        do_uu_tien = request.data.get('do_uu_tien', 1)
+        cong_khai = request.data.get('cong_khai', False)
+
+        # 3. Kiểm tra dữ liệu
+        if not ma_san_pham or not isinstance(ma_phan_hoi, list) or not ma_phan_hoi:
+            return Response(
+                {'detail': 'Vui lòng chọn sản phẩm và Feedback.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not ten_nhom or not ten_cong_viec:
+            return Response(
+                {'detail': 'Tên nhóm và tên công việc không được để trống.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            do_uu_tien = int(do_uu_tien)
+            if do_uu_tien < 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'Độ ưu tiên phải là số nguyên không âm.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            ma_san_pham = int(ma_san_pham)
+            ma_phan_hoi = [int(pk) for pk in ma_phan_hoi]
+        except (TypeError, ValueError):
+            return Response(
+                {'detail': 'Mã sản phẩm hoặc Feedback không hợp lệ.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(set(ma_phan_hoi)) != len(ma_phan_hoi):
+            return Response(
+                {'detail': 'Danh sách Feedback bị trùng.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 4. Tạo nhóm và Roadmap trong một transaction
+        with transaction.atomic():
+            try:
+                san_pham = SanPham.objects.select_for_update().get(
+                    pk=ma_san_pham
+                )
+            except SanPham.DoesNotExist:
+                return Response(
+                    {'detail': 'Sản phẩm không tồn tại.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            feedbacks = list(
+                PhanHoi.objects.select_for_update().filter(
+                    ma_phan_hoi__in=ma_phan_hoi,
+                    ma_san_pham=san_pham
+                )
+            )
+
+            if len(feedbacks) != len(ma_phan_hoi):
+                return Response(
+                    {'detail': 'Feedback không hợp lệ hoặc không cùng sản phẩm.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            feedback_da_duoc_duyet = ChiTietNhomAI.objects.filter(
+                ma_phan_hoi__in=ma_phan_hoi,
+                ma_nhom__roadmap__isnull=False
+            ).exists()
+
+            if feedback_da_duoc_duyet:
+                return Response(
+                    {'detail': 'Có Feedback đã được đưa vào Roadmap trước đó.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            nhom = NhomAI.objects.create(
+                ma_san_pham=san_pham,
+                ten_nhom=ten_nhom,
+                mo_ta=mo_ta
+            )
+
+            ChiTietNhomAI.objects.bulk_create([
+                ChiTietNhomAI(
+                    ma_nhom=nhom,
+                    ma_phan_hoi=feedback
+                )
+                for feedback in feedbacks
+            ])
+
+            roadmap = Roadmap.objects.create(
+                ma_san_pham=san_pham,
+                ma_nhom=nhom,
+                ten_cong_viec=ten_cong_viec,
+                trang_thai='Pending',
+                do_uu_tien=do_uu_tien,
+                cong_khai=cong_khai
+            )
+
+        return Response(
+            {
+                'message': 'Đã đưa nhóm Feedback vào Roadmap.',
+                'ma_nhom': nhom.ma_nhom,
+                'ma_roadmap': roadmap.ma_roadmap,
+                'so_feedback': len(feedbacks)
+            },
+            status=status.HTTP_201_CREATED
+        )

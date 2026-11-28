@@ -6,7 +6,8 @@ from .views import (
     ChiTietNhomAIViewSet, RoadmapViewSet,
     TaiKhoanView, PublicSanPhamListView,
     ChatCustomerStartView, ChatCustomerMessageView,
-    ChatCSListView, ChatCSMessageView
+    ChatCSListView, ChatCSMessageView,
+    PromoteAIGroupView
 )
 from django.urls import path, include
 
@@ -53,4 +54,10 @@ urlpatterns = [
         ChatCSMessageView.as_view(),
         name='chat-cs-message'
     ),
+
+    path(
+    'nhomai/dua-vao-roadmap/',
+    PromoteAIGroupView.as_view(),
+    name='promote-ai-group'
+),
 ]

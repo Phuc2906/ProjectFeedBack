@@ -17,6 +17,8 @@ const CFG = {
         vote: '/binhchon/',
         roadmap: '/roadmap/',
         groups: '/nhomai/',
+        groupDetails: '/chitietnhomai/',
+        promoteAI: '/nhomai/dua-vao-roadmap/',
         users: '/users/',
         ai: '/ai/insights/'
     }
