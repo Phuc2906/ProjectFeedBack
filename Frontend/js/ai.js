@@ -237,6 +237,8 @@ try {
    ĐƯA NHÓM AI VÀO ROADMAP
 ========================================================= */
 
+
+
 async function promoteAIGroup(i) {
     const c = window.CL?.[i];
 
@@ -255,13 +257,33 @@ async function promoteAIGroup(i) {
         return;
     }
 
+    // Product chọn chế độ hiển thị
+    const choice = prompt(
+        'Chọn chế độ hiển thị Roadmap:\n\n' +
+        'Nhập Public: Khách hàng được xem\n' +
+        'Nhập Private: Chỉ nội bộ được xem',
+        'Private'
+    );
+
+    if (choice === null) return;
+
+    const visibility = choice.trim().toLowerCase();
+
+    if (!['public', 'private'].includes(visibility)) {
+        toast('Vui lòng nhập Public hoặc Private.', true);
+        return;
+    }
+
+    const congKhai = visibility === 'public';
+
     const ok = confirm(
-        `Đưa nhóm "${c.title}" gồm ${c.items.length} feedback vào Roadmap?`
+        `Đưa nhóm "${c.title}" gồm ${c.items.length} feedback vào Roadmap với chế độ ${congKhai ? 'Public' : 'Private'}?`
     );
 
     if (!ok) return;
 
     const b = document.getElementById(`promote-${i}`);
+
     if (b) {
         b.disabled = true;
         b.textContent = 'Đang xử lý...';
@@ -278,7 +300,7 @@ async function promoteAIGroup(i) {
                 ten_cong_viec: `Cải thiện: ${c.title}`,
                 do_uu_tien: c.priority === 'high' ? 3
                     : c.priority === 'medium' ? 2 : 1,
-                cong_khai: false
+                cong_khai: congKhai
             }
         });
 
@@ -290,7 +312,9 @@ async function promoteAIGroup(i) {
             b.disabled = true;
         }
 
-        toast('Đã đưa nhóm feedback vào Roadmap!');
+        toast(
+            `Đã đưa vào Roadmap (${congKhai ? 'Public' : 'Private'})!`
+        );
 
     } catch (e) {
         if (b) {
@@ -301,6 +325,7 @@ async function promoteAIGroup(i) {
         toast(e.message, true);
     }
 }
+
 
 
 /* =========================================================

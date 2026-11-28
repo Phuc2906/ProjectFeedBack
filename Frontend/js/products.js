@@ -326,8 +326,76 @@ if (chatToken) {
 }
 
 
+/* =========================================================
+   8. TẢI ROADMAP CÔNG KHAI
+========================================================= */
+
+async function loadPublicRoadmap() {
+    const container = document.getElementById('publicRoadmap');
+
+    try {
+        const response = await fetch(`${API_URL}/roadmap/`);
+
+        if (!response.ok) {
+            throw new Error('Không thể tải Roadmap');
+        }
+
+        const result = await response.json();
+
+const roadmaps = Array.isArray(result)
+    ? result
+    : (result.results || []);
+
+// Chỉ hiển thị công việc Public
+const data = roadmaps.filter(x => x.cong_khai === true);
+
+        const cols = [
+            ['Pending', 'Chờ xử lý'],
+            ['In Progress', 'Đang thực hiện'],
+            ['Done', 'Hoàn thành']
+        ];
+
+        container.innerHTML = `
+            <div class="public-roadmap-grid">
+                ${cols.map(([status, label]) => {
+                    const list = data.filter(
+                        x => x.trang_thai === status
+                    );
+
+                    return `
+                        <div class="public-roadmap-column">
+                            <h3>${label} (${list.length})</h3>
+
+                            ${list.map(x => `
+                                <div class="public-roadmap-card">
+                                    <b>${escapeHTML(x.ten_cong_viec)}</b>
+                                    <p>Ưu tiên: ${x.do_uu_tien}</p>
+                                </div>
+                            `).join('') || '<p>Chưa có công việc.</p>'}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error(error);
+        container.innerHTML =
+            '<p>Không thể tải Roadmap. Vui lòng thử lại.</p>';
+    }
+}
+
+function escapeHTML(value) {
+    const div = document.createElement('div');
+    div.textContent = value ?? '';
+    return div.innerHTML;
+}
+
+
+
 // =========================================================
 // 8. KHỞI ĐỘNG
 // =========================================================
 
 loadProducts();
+loadPublicRoadmap();
